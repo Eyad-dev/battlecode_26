@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cambridge Battlecode — Full Reference</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1523; color: #dde3f0; line-height: 1.5; }
+  :root { --gap: 16px; }
+  .root { padding: 0.5rem 0; font-size: 15px; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .tab { padding: 8px 18px; border-radius: 8px; border: 1px solid #2e3d60; background: #1a2540; cursor: pointer; font-size: 14px; font-weight: 500; transition: all .15s; color: #8fa3c8; }
+  .tab:hover { background: #1e2d50; color: #c8d4ec; }
+  .tab.active { background: #2a4080; border-color: #4a6ab0; color: #ffffff; }
+  .section { display: none; }
+  .section.active { display: block; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 24px; color: #ffffff; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid #2e3d60; color: #ffffff; }
+  h3 { font-size: 11px; font-weight: 700; margin: 20px 0 8px; color: #ffffff; text-transform: uppercase; letter-spacing: .06em; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 22px; border: 1px solid #2e3d60; border-radius: 8px; overflow: hidden; }
+  th { text-align: left; font-weight: 600; font-size: 12px; padding: 10px 14px; border-bottom: 2px solid #2e3d60; color: #c8d4ec; background: #1a2d50; text-transform: uppercase; letter-spacing: .03em; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1e2d48; vertical-align: top; line-height: 1.55; color: #dde3f0; }
+  tbody tr:nth-child(even) { background: #131e34; }
+  tbody tr:hover { background: #1a2840; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+  .ti  { background: #1b3a6b; color: #7ec8f8; }
+  .ax  { background: #1a3d1a; color: #7dd87d; }
+  .ax-r{ background: #0f3830; color: #5de0b8; }
+  .free{ background: #2a2e3a; color: #b0b8cc; }
+  .card { background: #1a2540; border: 1px solid #2e3d60; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .card-title { font-weight: 600; margin-bottom: 8px; font-size: 15px; color: #ffffff; }
+  .card-sub { font-size: 13px; color: #a0b0cc; line-height: 1.65; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 500px) { .grid2,.grid3 { grid-template-columns: 1fr; } }
+  .tag { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; border: 1px solid #2e3d60; margin-right: 4px; color: #a0b0cc; background: #1e2d48; }
+  .note { font-size: 13px; color: #b8d4f8; line-height: 1.65; padding: 12px 14px; background: #162038; border-left: 4px solid #4a8fd0; border-radius: 0 6px 6px 0; margin-bottom: 16px; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #1e2d48; gap: 12px; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-key { color: #8fa3c8; font-weight: 500; }
+  .stat-val { font-weight: 600; color: #e8eef8; text-align: right; }
+</style>
+</head>
+<body>
+<h1>Cambridge Battlecode — Full Reference</h1>
+<div class="root">
+<div class="tabs">
+  <div class="tab active" onclick="show('resources', this)">Resources</div>
+  <div class="tab" onclick="show('units', this)">Units</div>
+  <div class="tab" onclick="show('buildings', this)">Buildings</div>
+  <div class="tab" onclick="show('turrets', this)">Turrets</div>
+  <div class="tab" onclick="show('costs', this)">Build Costs</div>
+</div>
+
+<!-- RESOURCES -->
+<div class="section active" id="resources">
+  <h2>Resources</h2>
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title"><span class="badge ti">Ti</span> Titanium</div>
+      <div class="card-sub">Primary building resource. Each team starts with <strong>1000 Ti</strong>. Harvested from titanium ore deposits.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge ax">Raw Ax</span> Raw Axionite</div>
+      <div class="card-sub">Mined from axionite ore deposits. Fed to turrets/core it decays into titanium. Must be refined for advanced use.</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="badge ax-r">Ref. Ax</span> Refined Axionite</div>
+      <div class="card-sub">Produced by axionite foundries (1× Ti stack + 1× raw Ax stack → 1× refined Ax stack). Used for powerful units and turret ammo.</div>
+    </div>
+  </div>
+  <h3>Default starting amounts</h3>
+  <table>
+    <tr><th>Resource</th><th>Starting amount</th><th>Source</th></tr>
+    <tr><td><span class="badge ti">Ti</span> Titanium</td><td><strong>1000</strong></td><td>Given at game start</td></tr>
+    <tr><td><span class="badge ax">Raw Ax</span></td><td>0</td><td>Must be mined</td></tr>
+    <tr><td><span class="badge ax-r">Ref. Ax</span></td><td>0</td><td>Must be refined</td></tr>
+  </table>
+  <h3>How to increase resources</h3>
+  <table>
+    <tr><th>Method</th><th>Produces</th><th>Details</th></tr>
+    <tr><td>Titanium Harvester (on Ti ore)</td><td><span class="badge ti">Ti</span></td><td>Outputs 1 stack (10 units) every 4 rounds. First output happens immediately on build.</td></tr>
+    <tr><td>Axionite Harvester (on Ax ore)</td><td><span class="badge ax">Raw Ax</span></td><td>Outputs 1 stack every 4 rounds. Same immediate-first-output rule.</td></tr>
+    <tr><td>Axionite Foundry</td><td><span class="badge ax-r">Ref. Ax</span></td><td>Consumes 1× Ti stack + 1× raw Ax stack → outputs 1× refined Ax stack.</td></tr>
+    <tr><td>Conveyors to Core</td><td>Pool delivery</td><td>Resources only enter your global pool when conveyed into the core. They don't count until delivered.</td></tr>
+    <tr><td>Raw Ax → Core or Turret</td><td><span class="badge ti">Ti</span></td><td>Feeding raw axionite to the core or a turret converts it to titanium (decays).</td></tr>
+  </table>
+  <div class="note">Resources move in <strong>stacks of 10</strong>. Buildings distribute at end of each round. Resources can be accidentally sent to enemy buildings — watch conveyor directions!</div>
+</div>
+
+<!-- UNITS -->
+<div class="section" id="units">
+  <h2>Units</h2>
+  <h3>Core</h3>
+  <div class="card">
+    <div class="card-title">Core <span class="tag">unit + building</span><span class="tag">immovable</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+      <div class="stat-row"><span class="stat-key">HP</span><span class="stat-val">500</span></div>
+      <div class="stat-row"><span class="stat-key">Footprint</span><span class="stat-val">3×3 tiles</span></div>
+      <div class="stat-row"><span class="stat-key">Vision radius²</span><span class="stat-val">36</span></div>
+      <div class="stat-row"><span class="stat-key">Action radius²</span><span class="stat-val">8 (from centre)</span></div>
+      <div class="stat-row"><span class="stat-key">Cost</span><span class="stat-val">Free (starts in play)</span></div>
+      <div class="stat-row"><span class="stat-key">Spawning</span><span class="stat-val">1 builder bot/round</span></div>
+    </div>
+    <div class="card-sub" style="margin-top:10px">If your core is destroyed, you lose. Spawns builder bots on any of its 9 tiles. Resources must be conveyed into the core to enter your global pool.</div>
+  </div>
+  <h3>Builder Bot</h3>
+  <div class="card">
+    <div class="card-title">Builder Bot <span class="tag">only mobile unit</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+      <div class="stat-row"><span class="stat-key">HP</span><span class="stat-val">30</span></div>
+      <div class="stat-row"><span class="stat-key">Base cost</span><span class="stat-val">10 Ti</span></div>
+      <div class="stat-row"><span class="stat-key">Scaling contribution</span><span class="stat-val">+10%</span></div>
+      <div class="stat-row"><span class="stat-key">Vision radius²</span><span class="stat-val">20</span></div>
+      <div class="stat-row"><span class="stat-key">Action radius²</span><span class="stat-val">2</span></div>
+      <div class="stat-row"><span class="stat-key">Move cooldown</span><span class="stat-val">+1 per move</span></div>
+    </div>
+    <div class="card-sub" style="margin-top:10px">
+      <strong>Can walk on:</strong> conveyors (any direction/team), roads (any team), allied core.<br><br>
+      <strong>Actions (per action cooldown):</strong> Build any building or turret within radius • Heal all friendly entities on a tile by 10 HP<br><br>
+      <strong>Destroy:</strong> Can destroy allied buildings within action radius — unlimited times per round, no cooldown cost.<br><br>
+      <strong>Self-destruct:</strong> Deals 20 damage to the tile it stands on. Markers: 1 per round, free, separate from action cooldown.
+    </div>
+  </div>
+  <h3>Cooldown system</h3>
+  <div class="note">All units have <strong>action</strong> and <strong>move</strong> cooldowns (non-negative integers that decrease by 1 each round). Actions and movement require cooldown = 0. Moving costs +1 move cooldown. Building/healing costs +1 action cooldown.</div>
+</div>
+
+<!-- BUILDINGS -->
+<div class="section" id="buildings">
+  <h2>Buildings</h2>
+  <h3>Conveyors (transport resources)</h3>
+  <table>
+    <tr><th>Type</th><th>HP</th><th>Base cost</th><th>Scaling</th><th>Notes</th></tr>
+    <tr><td>Conveyor</td><td>20</td><td>3 Ti</td><td>+1%</td><td>Accepts from 3 non-output sides. Sends in one cardinal direction.</td></tr>
+    <tr><td>Splitter</td><td>20</td><td>6 Ti</td><td>+1%</td><td>Alternates output across 3 directions. Only accepts from back.</td></tr>
+    <tr><td>Bridge</td><td>20</td><td>10 Ti</td><td>+1%</td><td>Outputs to a specific tile within Euclidean distance 3 (d²≤9). Bypasses directional restrictions.</td></tr>
+    <tr><td>Armoured Conveyor</td><td>50</td><td>10 Ti + 5 Ax</td><td>+1%</td><td>Same as conveyor but much more HP. Requires refined axionite.</td></tr>
+  </table>
+  <h3>Resource production</h3>
+  <table>
+    <tr><th>Type</th><th>HP</th><th>Base cost</th><th>Scaling</th><th>Notes</th></tr>
+    <tr><td>Harvester</td><td>30</td><td>80 Ti</td><td>+10%</td><td>Must be on an ore deposit. Outputs 1 stack every 4 rounds. First output is immediate.</td></tr>
+    <tr><td>Axionite Foundry</td><td>50</td><td>120 Ti</td><td>+100%</td><td>Consumes 1× Ti + 1× raw Ax → outputs 1× refined Ax. Accepts/outputs from any side.</td></tr>
+  </table>
+  <div class="note">Foundries have the highest scaling (+100%). Building one doubles your cost multiplier (e.g. 1.0× → 2.0×). Plan carefully!</div>
+  <h3>Utility buildings</h3>
+  <table>
+    <tr><th>Type</th><th>HP</th><th>Base cost</th><th>Scaling</th><th>Notes</th></tr>
+    <tr><td>Road</td><td>10</td><td>1 Ti</td><td>+0.5%</td><td>Walkable tiles for builder bots. Cheapest building.</td></tr>
+    <tr><td>Barrier</td><td>30</td><td>3 Ti</td><td>+1%</td><td>Blocks enemy paths, protects key buildings. Not walkable.</td></tr>
+    <tr><td>Marker</td><td>1</td><td>Free</td><td>0%</td><td>Stores a 32-bit integer readable by any allied unit. The only communication channel between units. 1 per round per unit. Does not cost action cooldown.</td></tr>
+  </table>
+</div>
+
+<!-- TURRETS -->
+<div class="section" id="turrets">
+  <h2>Turrets (combat)</h2>
+  <div class="note">Ammo is fed via conveyors from any direction except the turret's facing direction. Turrets only accept ammo when completely empty. They can hold 1 stack of 1 resource type.</div>
+  <h3>Gunner</h3>
+  <div class="card">
+    <div class="card-title">Gunner</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div class="stat-row"><span class="stat-key">HP</span><span class="stat-val">40</span></div>
+      <div class="stat-row"><span class="stat-key">Base cost</span><span class="stat-val">10 Ti</span></div>
+      <div class="stat-row"><span class="stat-key">Scaling</span><span class="stat-val">+10%</span></div>
+      <div class="stat-row"><span class="stat-key">Damage</span><span class="stat-val">10 (20 w/ ref. Ax)</span></div>
+      <div class="stat-row"><span class="stat-key">Reload</span><span class="stat-val">1 round</span></div>
+      <div class="stat-row"><span class="stat-key">Ammo/shot</span><span class="stat-val">2</span></div>
+      <div class="stat-row"><span class="stat-key">Vision r²</span><span class="stat-val">13</span></div>
+      <div class="stat-row"><span class="stat-key">Attack r²</span><span class="stat-val">13</span></div>
+    </div>
+    <div class="card-sub" style="margin-top:8px">Targets the <strong>closest non-empty tile</strong> in its facing direction. Using refined axionite as ammo deals double damage (20).</div>
+  </div>
+  <h3>Sentinel</h3>
+  <div class="card">
+    <div class="card-title">Sentinel</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div class="stat-row"><span class="stat-key">HP</span><span class="stat-val">30</span></div>
+      <div class="stat-row"><span class="stat-key">Base cost</span><span class="stat-val">15 Ti</span></div>
+      <div class="stat-row"><span class="stat-key">Scaling</span><span class="stat-val">+10%</span></div>
+      <div class="stat-row"><span class="stat-key">Damage</span><span class="stat-val">20 (+ stun w/ Ax)</span></div>
+      <div class="stat-row"><span class="stat-key">Reload</span><span class="stat-val">4 rounds</span></div>
+      <div class="stat-row"><span class="stat-key">Ammo/shot</span><span class="stat-val">10</span></div>
+      <div class="stat-row"><span class="stat-key">Vision r²</span><span class="stat-val">32</span></div>
+      <div class="stat-row"><span class="stat-key">Attack r²</span><span class="stat-val">32</span></div>
+    </div>
+    <div class="card-sub" style="margin-top:8px">High range, wide arc (within 1 king-move of facing line). Using refined axionite adds <strong>+3 to action/move cooldown</strong> of any unit hit — a stun. Extremely powerful against builder bots.</div>
+  </div>
+  <h3>Breach</h3>
+  <div class="card">
+    <div class="card-title">Breach</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div class="stat-row"><span class="stat-key">HP</span><span class="stat-val">60</span></div>
+      <div class="stat-row"><span class="stat-key">Base cost</span><span class="stat-val">30 Ti + 10 Ax</span></div>
+      <div class="stat-row"><span class="stat-key">Scaling</span><span class="stat-val">+10%</span></div>
+      <div class="stat-row"><span class="stat-key">Damage</span><span class="stat-val">40 direct + 20 splash</span></div>
+      <div class="stat-row"><span class="stat-key">Reload</span><span class="stat-val">1 round</span></div>
+      <div class="stat-row"><span class="stat-key">Ammo/shot</span><span class="stat-val">5 (ref. Ax only)</span></div>
+      <div class="stat-row"><span class="stat-key">Vision r²</span><span class="stat-val">10</span></div>
+      <div class="stat-row"><span class="stat-key">Attack r²</span><span class="stat-val">5</span></div>
+    </div>
+    <div class="card-sub" style="margin-top:8px">180° cone attack in facing direction. 40 direct + 20 splash on 8 surrounding tiles. <strong>Has friendly fire on splash.</strong> Does not damage itself. Refined axionite only.</div>
+  </div>
+  <h3>Launcher</h3>
+  <div class="card">
+    <div class="card-title">Launcher</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div class="stat-row"><span class="stat-key">HP</span><span class="stat-val">30</span></div>
+      <div class="stat-row"><span class="stat-key">Base cost</span><span class="stat-val">20 Ti</span></div>
+      <div class="stat-row"><span class="stat-key">Scaling</span><span class="stat-val">+10%</span></div>
+      <div class="stat-row"><span class="stat-key">Reload</span><span class="stat-val">1 round</span></div>
+      <div class="stat-row"><span class="stat-key">Ammo</span><span class="stat-val">None</span></div>
+      <div class="stat-row"><span class="stat-key">Vision r²</span><span class="stat-val">26</span></div>
+      <div class="stat-row"><span class="stat-key">Attack r²</span><span class="stat-val">26</span></div>
+    </div>
+    <div class="card-sub" style="margin-top:8px">Picks up and <strong>throws adjacent builder bots</strong> to any bot-passable tile within range. No facing direction. No ammo. Useful for rapid builder deployment.</div>
+  </div>
+</div>
+
+<!-- BUILD COSTS -->
+<div class="section" id="costs">
+  <h2>Build costs &amp; scaling</h2>
+  <div class="note">Every entity you build increases a global scale multiplier. <strong>cost = ⌊scale × base cost⌋</strong>. Scale starts at 1.0 (100%) and increases additively. Destroying an entity removes its scaling contribution.</div>
+  <table>
+    <tr><th>Entity</th><th>Base cost</th><th>Scale +</th><th>Notes</th></tr>
+    <tr><td>Road</td><td>1 Ti</td><td>+0.5%</td><td>Cheapest building. Walkable.</td></tr>
+    <tr><td>Conveyor</td><td>3 Ti</td><td>+1%</td><td>Basic transport.</td></tr>
+    <tr><td>Barrier</td><td>3 Ti</td><td>+1%</td><td>High HP blocker.</td></tr>
+    <tr><td>Splitter</td><td>6 Ti</td><td>+1%</td><td>3-way conveyor.</td></tr>
+    <tr><td>Builder Bot</td><td>10 Ti</td><td>+10%</td><td>Only mobile unit.</td></tr>
+    <tr><td>Gunner</td><td>10 Ti</td><td>+10%</td><td>Fast-firing turret.</td></tr>
+    <tr><td>Bridge</td><td>10 Ti</td><td>+1%</td><td>Long-range conveyor.</td></tr>
+    <tr><td>Armoured Conveyor</td><td>10 Ti + 5 Ax</td><td>+1%</td><td>Tough transport, needs ref. Ax.</td></tr>
+    <tr><td>Launcher</td><td>20 Ti</td><td>+10%</td><td>Bot-throwing turret.</td></tr>
+    <tr><td>Sentinel</td><td>15 Ti</td><td>+10%</td><td>Long-range stun turret.</td></tr>
+    <tr><td>Breach</td><td>30 Ti + 10 Ax</td><td>+10%</td><td>Splash turret, needs ref. Ax.</td></tr>
+    <tr><td>Harvester</td><td>80 Ti</td><td>+10%</td><td>On ore deposit only.</td></tr>
+    <tr><td>Axionite Foundry</td><td>120 Ti</td><td>+100%</td><td>⚠️ Doubles cost multiplier.</td></tr>
+    <tr><td>Marker</td><td>Free</td><td>0%</td><td>Communication only.</td></tr>
+  </table>
+  <h3>Resources needed per action</h3>
+  <table>
+    <tr><th>Action</th><th>Cost</th><th>Notes</th></tr>
+    <tr><td>Move (builder bot)</td><td>Free (costs move cooldown)</td><td>+1 move cooldown per step</td></tr>
+    <tr><td>Build a building/turret</td><td>See table above (Ti/Ax)</td><td>+1 action cooldown</td></tr>
+    <tr><td>Spawn builder bot (core)</td><td>10 Ti (base)</td><td>+1 action cooldown on core</td></tr>
+    <tr><td>Heal</td><td>Free (costs action cooldown)</td><td>+10 HP to all on target tile</td></tr>
+    <tr><td>Destroy allied building</td><td>Free</td><td>Unlimited per round, no cooldown</td></tr>
+    <tr><td>Place marker</td><td>Free</td><td>1 per round, no action cooldown</td></tr>
+    <tr><td>Self-destruct</td><td>Free (destroys self)</td><td>20 damage to tile occupied</td></tr>
+    <tr><td>Gunner fire</td><td>2 ammo (Ti or Ax)</td><td>Per shot; Ax deals double damage</td></tr>
+    <tr><td>Sentinel fire</td><td>10 ammo (Ti or Ax)</td><td>Ax adds +3 cooldown stun</td></tr>
+    <tr><td>Breach fire</td><td>5 refined Ax</td><td>Ref. Ax only</td></tr>
+    <tr><td>Launcher fire</td><td>Free (no ammo)</td><td>Needs adjacent builder bot</td></tr>
+  </table>
+</div>
+
+</div>
+
+<script>
+function show(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>
