@@ -69,13 +69,12 @@ def builderrun(self, ct: Controller):
             check_ore_direction = current_pos.direction_to(self.target_ore)
             print(check_ore_direction)
             print(self.heading)
-            if (current_pos.x - self.target_ore.x == 0 or current_pos.y - self.target_ore.y == 0):
+            test_dir = rotate(self.wall_follow_direction, -2)
+            if (current_pos.x - self.target_ore.x == 0 or current_pos.y - self.target_ore.y == 0) or (current_pos.x - self.target_ore.x == current_pos.y - self.target_ore.y):
             # if (current_pos.x - self.target_ore.x == 0 or current_pos.y - self.target_ore.y == 0):
                 temp_dir = rotate(self.wall_follow_direction, 2)
                 if (temp_dir == check_ore_direction):
                     test_dir = rotate(self.wall_follow_direction, 2)
-            else:
-                test_dir = rotate(self.wall_follow_direction, -2)
 
             for _ in range(8):
                 test_pos = current_pos.add(test_dir)
