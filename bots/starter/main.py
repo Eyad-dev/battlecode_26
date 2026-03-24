@@ -3,7 +3,7 @@ import random
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
 from scanning import *
 from core import *
-
+from builder import *
 
 
 # non-centre directions
@@ -12,7 +12,13 @@ DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 class Player:
     def __init__(self):
         self.num_spawned = 0 # number of builder bots spawned so far (core)
+        
+        # BUILDER BOT MEMORY
+        self.mode = "ROOMBA"
         self.heading = random.choice(DIRECTIONS)
+        self.target_ore = None
+        self.hit_distance = 999999
+        self.wall_follow_direction = None
     def run(self, ct: Controller) -> None:
         etype = ct.get_entity_type()
         if etype == EntityType.CORE:
@@ -26,26 +32,12 @@ class Player:
             #Opponent core equals
             #Core ((grid_length - CoreAx)-1 , (grid_height - CoreAy) -1)
         elif etype == EntityType.BUILDER_BOT:
+            builderrun(self, ct)
             # Move towards a target
             # direction = ct.get_position().direction_to(ores)
             # if ct.can_move(direction):
             #     ct.move(direction)
-            
-            ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
-
-            if(ores):
-                for i in ores:
-                    print(i)
-            move_pos = ct.get_position().add(self.heading)
-            if ct.can_build_road(move_pos):
-                ct.build_road(move_pos)
-                
-            # Try to move forward
-            if ct.can_move(self.heading):
-                ct.move(self.heading)
-            
-            else:
-                self.heading = random.choice(DIRECTIONS)
+        
             # # if we are adjacent to an ore tile, build a harvester on it
             # for d in Direction:
             #     check_pos = ct.get_position().add(d)
