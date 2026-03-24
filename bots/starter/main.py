@@ -10,18 +10,12 @@ from builder import *
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 
 class Player:
-    ATTACKBOTS =0
-    ATTACKBOTSSPAWNED=0
-
-    HARVESTBOTS=0
-    HARVESTBOTSSPAWNED=0
     def __init__(self):
-        self.attack_bots=0
-        self.harvest_bots=0
-        self.bot_state= None
         #CORE MEMROY
         self.num_spawned = 0 # number of builder bots spawned so far (core)
+        self.marker_spawned = False
         # BUILDER BOT MEMORY
+        self.bot_state = None
         self.mode = "ROOMBA"
         self.heading = random.choice(DIRECTIONS)
         self.target_ore = None
@@ -31,8 +25,6 @@ class Player:
         etype = ct.get_entity_type()
         if etype == EntityType.CORE:
             corerrun(self, ct)
-
-
             #40x40 grid
             #Core A (11, 25)
             #Core B (28,14)
@@ -40,14 +32,29 @@ class Player:
             #Opponent core equals
             #Core ((grid_length - CoreAx)-1 , (grid_height - CoreAy) -1)
         elif etype == EntityType.BUILDER_BOT:
-            print(Player.ATTACKBOTSSPAWNED)
-            if self.bot_state== None and Player.ATTACKBOTS != Player.ATTACKBOTSSPAWNED:
-                self.bot_state="ATTACK"
-                print(Player.ATTACKBOTSSPAWNED)
-            elif self.bot_state== None and Player.HARVESTBOTS != Player.HARVESTBOTSSPAWNED:
-                self.bot_state="HARVEST"
+            #checking if the bot state is stillo none
+            if self.bot_state is None:
+                nearby_ids = ct.get_nearby_entities()
 
-            builderrun(self, ct)
+                for entity_id in nearby_ids:
+                    if ct.get_entity_type(entity_id) == EntityType.MARKER:
+
+                        role_id = ct.get_marker_value(entity_id)
+
+                        if role_id == 1:
+                            self.bot_state = "HARVEST"
+                        elif role_id == 2:
+                            self.bot_state = "ATTACK"
+                        
+                        print(self.bot_state)
+                        break #break from searching any other entity, we got our role
+                
+                
+            
+            if self.bot_state == "HARVEST":
+                builderrun(self, ct)
+            elif self.bot_state == "ATTACK":
+                print("fight sound effects :)")
             # Move towards a target
             # direction = ct.get_position().direction_to(ores)
             # if ct.can_move(direction):
