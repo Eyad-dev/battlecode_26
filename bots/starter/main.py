@@ -1,20 +1,10 @@
 import random
 
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
+from scanning import *
+from core import *
 
-def scan_ore_vision(ct, gameconst):
-    ores=[]
-    rangesquare = gameconst
-    ranged= (int)(rangesquare**0.5)
-    for x in range(-ranged, ranged + 1):
-        for y in range(-ranged, ranged + 1):
-            if x**2 + y**2 <= rangesquare:
-                newposx = ct.get_position().x +x
-                newposy = ct.get_position().y +y
-                pos = Position(newposx, newposy)
-                if ct.get_tile_env(pos) == Environment.ORE_TITANIUM or ct.get_tile_env(pos) ==Environment.ORE_AXIONITE:
-                    ores.append(pos)
-    return ores
+
 
 # non-centre directions
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
@@ -26,14 +16,7 @@ class Player:
     def run(self, ct: Controller) -> None:
         etype = ct.get_entity_type()
         if etype == EntityType.CORE:
-            if self.num_spawned <1:
-                spawn_pos = ct.get_position().add(random.choice(DIRECTIONS))
-                if ct.can_spawn(spawn_pos):
-                    ct.spawn_builder(spawn_pos)
-                self.num_spawned += 1
-            ores= scan_ore_vision(ct, GameConstants.CORE_VISION_RADIUS_SQ)
-            print(ores)
-            
+            corerrun(self, ct)
 
 
             #40x40 grid
