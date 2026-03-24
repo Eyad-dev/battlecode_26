@@ -1,6 +1,7 @@
 import random
 from cambc import Controller, Direction, GameConstants, Position
 from scanning import *
+from snipe import *
 
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 CLOCKWISE_DIRS = [
@@ -148,19 +149,23 @@ def builderrun(self, ct: Controller):
     It passes the 'self' instance to the modular helper functions.
     """
     current_pos = ct.get_position()
+
+    if self.bot_state== "HARVEST":
+        # 1. Vision and Harvester check
+        if handle_vision_and_harvesting(self, ct, current_pos):
+            return 
+            
+        # 2. State Machine execution
+        if self.mode == "BUG":
+            if run_bug_mode(self, ct, current_pos):
+                return
+
+        if self.mode == "GREEDY":
+            if run_greedy_mode(self, ct, current_pos):
+                return
+
+        if self.mode == "ROOMBA":
+            run_roomba_mode(self, ct, current_pos)
     
-    # 1. Vision and Harvester check
-    if handle_vision_and_harvesting(self, ct, current_pos):
-        return 
-        
-    # 2. State Machine execution
-    if self.mode == "BUG":
-        if run_bug_mode(self, ct, current_pos):
-            return
-
-    if self.mode == "GREEDY":
-        if run_greedy_mode(self, ct, current_pos):
-            return
-
-    if self.mode == "ROOMBA":
-        run_roomba_mode(self, ct, current_pos)
+    elif self.bot_state== "ATTACK":
+        snipe_the_enemy(self, ct)

@@ -89,3 +89,9 @@ def orient(self, ct: Controller):
 def far_orient_builder(self, ct: Controller):  
     #bep
     x = 0
+
+
+def snipe_the_enemy():
+    x=0
+
+
