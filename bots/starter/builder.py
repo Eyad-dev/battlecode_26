@@ -118,9 +118,11 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position) -> bool:
 def run_roomba_mode(self, ct: Controller, current_pos: Position):
     print(f"ROOMBA Mode | Hit Dist: {self.hit_distance}")
     move_pos = current_pos.add(self.heading)
-    
-    if ct.can_build_road(move_pos):
-        ct.build_road(move_pos)
+
+    check_for_marker = ct.get_tile_building_id(move_pos)
+    if ct.get_entity_type(check_for_marker) != EntityType.MARKER:
+        if ct.can_build_road(move_pos):
+            ct.build_road(move_pos)
 
     if ct.can_move(self.heading):
         ct.move(self.heading)
