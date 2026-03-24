@@ -11,8 +11,8 @@ DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 
 class Player:
     def __init__(self):
+        #CORE MEMROY
         self.num_spawned = 0 # number of builder bots spawned so far (core)
-        
         # BUILDER BOT MEMORY
         self.mode = "ROOMBA"
         self.heading = random.choice(DIRECTIONS)
