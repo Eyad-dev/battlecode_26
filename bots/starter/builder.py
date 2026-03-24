@@ -13,6 +13,10 @@ CLOCKWISE_DIRS = [
     Direction.WEST,
     Direction.NORTHWEST
 ]
+STRAIGHT_DIRS = [
+    Direction.NORTH, Direction.EAST, 
+    Direction.SOUTH, Direction.WEST
+]
 
 def rotate(current_dir, steps_clockwise):
     # 1 for 45 degrees right
@@ -44,20 +48,35 @@ def builderrun(self, ct: Controller):
                  #LETSA GO, WE BUILT OUR FIRST HARVERSTER ON OUR FIRST ORE
                 self.mode = "ROOMBA"
                 self.target_ore = None
+            else:
+                self.mode = "ROOMBA"
+                self.target_ore = None
             return
         #   ===========================================================================================================================    
         #If we aren't adjacent to the ore yet
     if self.mode == "BUG":
         current_dist_sq = (current_pos.x - self.target_ore.x)**2 + (current_pos.y - self.target_ore.y)**2
-        
+        print("BUG")
+        print(current_dist_sq)
+        print(self.hit_distance)
         # The Release Condition: Did we get closer than when we got stuck?
         if current_dist_sq < self.hit_distance:
             self.mode = "GREEDY"
             self.hit_distance = 999999
         else:
+            print("We rotating")
             # The Wall Sweep: Look 90 degrees left, then sweep clockwise
-            test_dir = rotate(self.wall_follow_direction, -2) 
-            
+            check_ore_direction = current_pos.direction_to(self.target_ore)
+            print(check_ore_direction)
+            print(self.heading)
+            if (current_pos.x - self.target_ore.x == 0 or current_pos.y - self.target_ore.y == 0):
+            # if (current_pos.x - self.target_ore.x == 0 or current_pos.y - self.target_ore.y == 0):
+                temp_dir = rotate(self.wall_follow_direction, 2)
+                if (temp_dir == check_ore_direction):
+                    test_dir = rotate(self.wall_follow_direction, 2)
+            else:
+                test_dir = rotate(self.wall_follow_direction, -2)
+
             for _ in range(8):
                 test_pos = current_pos.add(test_dir)
                 if ct.can_move(test_dir) or ct.can_build_road(test_pos):
@@ -72,6 +91,8 @@ def builderrun(self, ct: Controller):
             return # This happens when we are completley trapped, 
         #===========================================================================================================================
     if self.mode == "GREEDY":
+        print("GREEDY")
+        print(self.hit_distance)
         current_dist_sq = (current_pos.x - self.target_ore.x)**2 + (current_pos.y - self.target_ore.y)**2
         possible_moves = []
         
@@ -100,6 +121,7 @@ def builderrun(self, ct: Controller):
             self.mode = "BUG"
             self.hit_distance = current_dist_sq
             self.wall_follow_direction = best_dir if best_dir else DIRECTIONS[0]
+            print(self.hit_distance)
             return 
         else:
             if best_pos and ct.can_build_road(best_pos):
@@ -110,6 +132,8 @@ def builderrun(self, ct: Controller):
         #===========================================================================================================================
         #If nun of all that, then that means we still didn't see any ores yet so we will continue the roomba
     if self.mode == "ROOMBA":
+        print("ROOMBA")
+        print(self.hit_distance)
         move_pos = current_pos.add(self.heading)
         
         if ct.can_build_road(move_pos):
