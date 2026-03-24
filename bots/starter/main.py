@@ -11,6 +11,8 @@ DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 
 class Player:
     def __init__(self):
+        self.attack_bots=0
+        self.bot_state= None
         #CORE MEMROY
         self.num_spawned = 0 # number of builder bots spawned so far (core)
         # BUILDER BOT MEMORY

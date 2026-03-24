@@ -17,6 +17,10 @@ locked = None
 possible = set(dir)
 
 def check_symmetry(self, ct: Controller, tiles: list[Position]):
+    global possible, locked
+    if locked is not None:
+        return locked
+
     width = ct.get_map_width()
     height = ct.get_map_height()
     mirroredpoints= []
@@ -32,7 +36,7 @@ def check_symmetry(self, ct: Controller, tiles: list[Position]):
                 continue
             
 
-            if mirrored not in tiles:
+            if not ct.is_in_vision(mirrored):
                 mirroredpoints.append(mirrored)
                 continue
             
@@ -52,17 +56,15 @@ def check_symmetry(self, ct: Controller, tiles: list[Position]):
     if locked is not None: 
         mirroredpoints= None
 
-    return locked, mirroredpoints
+    return locked, mirroredpoints 
+#locked will be none if symmetry isnt determined yet
+#otherwise it will be the detected symmetry
+#mirrored points are the points that are in the vision but their mirror is not
 
 
 def orient(self, ct: Controller):
 
     tiles = ct.get_nearby_tiles()
-
-    global possible, locked
-
-    if locked is not None:
-        return locked
 
     editedtiles= tiles.copy()
     for tile in tiles:
@@ -87,4 +89,3 @@ def orient(self, ct: Controller):
 def far_orient_builder(self, ct: Controller):  
     #bep
     x = 0
-
