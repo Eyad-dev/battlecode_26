@@ -14,6 +14,9 @@ class Player:
         #CORE MEMROY
         self.num_spawned = 0 # number of builder bots spawned so far (core)
         self.marker_spawned = False
+        self.mirroredpoints= None
+        self.enemycoord= None
+        self.ourcoord= None
         # BUILDER BOT MEMORY
         self.bot_state = None
         self.mode = "ROOMBA"
@@ -37,6 +40,10 @@ class Player:
                 nearby_ids = ct.get_nearby_entities()
 
                 for entity_id in nearby_ids:
+                    if ct.get_entity_type(entity_id) == EntityType.CORE:
+                        core_pos = ct.get_position(entity_id)
+                        self.ourcoord = core_pos
+
                     if ct.get_entity_type(entity_id) == EntityType.MARKER:
 
                         role_id = ct.get_marker_value(entity_id)
@@ -55,6 +62,7 @@ class Player:
                 builderrun(self, ct)
             elif self.bot_state == "ATTACK":
                 print("fight sound effects :)")
+                builderrun(self, ct)
             # Move towards a target
             # direction = ct.get_position().direction_to(ores)
             # if ct.can_move(direction):

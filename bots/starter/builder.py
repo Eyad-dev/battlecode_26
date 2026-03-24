@@ -78,14 +78,14 @@ def run_bug_mode(self, ct: Controller, current_pos: Position) -> bool:
         return True # Completely trapped, end turn and wait
 
 
-def run_greedy_mode(self, ct: Controller, current_pos: Position) -> bool:
+def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
     print(f"GREEDY Mode | Hit Dist: {self.hit_distance}")
-    current_dist_sq = (current_pos.x - self.target_ore.x)**2 + (current_pos.y - self.target_ore.y)**2
+    current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     possible_moves = []
     
     for d in DIRECTIONS:
         hyp_pos = current_pos.add(d)
-        dist_sq = (hyp_pos.x - self.target_ore.x)**2 + (hyp_pos.y - self.target_ore.y)**2
+        dist_sq = (hyp_pos.x - goal_pos.x)**2 + (hyp_pos.y - goal_pos.y)**2
         possible_moves.append((dist_sq, d, hyp_pos))
         
     possible_moves.sort(key=lambda item: item[0])
@@ -165,11 +165,13 @@ def builderrun(self, ct: Controller):
                 return
 
         if self.mode == "GREEDY":
-            if run_greedy_mode(self, ct, current_pos):
+            if run_greedy_mode(self, ct, current_pos, self.target_ore):
                 return
 
         if self.mode == "ROOMBA":
             run_roomba_mode(self, ct, current_pos)
     
     elif self.bot_state== "ATTACK":
-        snipe_the_enemy(self, ct)
+        find_the_enemy(self, ct)
+        #snipe_the_enemy(self, ct)
+

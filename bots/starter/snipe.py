@@ -1,5 +1,6 @@
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
 
+
 dir = ["x", "y", "r"]
 def mirror(pos: Position, w,h, d):
     x= pos.x
@@ -16,10 +17,14 @@ def mirror(pos: Position, w,h, d):
 locked = None
 possible = set(dir)
 
+
 def check_symmetry(self, ct: Controller, tiles: list[Position]):
     global possible, locked
     if locked is not None:
-        return locked
+        return locked, None
+
+    if tiles is None:
+        return locked, None
 
     width = ct.get_map_width()
     height = ct.get_map_height()
@@ -37,7 +42,7 @@ def check_symmetry(self, ct: Controller, tiles: list[Position]):
             
 
             if not ct.is_in_vision(mirrored):
-                mirroredpoints.append(mirrored)
+                mirroredpoints.append((pos, mirrored, tile, d))
                 continue
             
             else:
@@ -53,9 +58,6 @@ def check_symmetry(self, ct: Controller, tiles: list[Position]):
         
         possible = changedpos
 
-    if locked is not None: 
-        mirroredpoints= None
-
     return locked, mirroredpoints 
 #locked will be none if symmetry isnt determined yet
 #otherwise it will be the detected symmetry
@@ -63,35 +65,56 @@ def check_symmetry(self, ct: Controller, tiles: list[Position]):
 
 
 def orient(self, ct: Controller):
+    print("in orient")
+    global possible, locked
+    pos, mirrored, tiletype, d = self.mirroredpoints[0][:]
+    print(f"Checking point {pos} with mirror {mirrored} and tile type {tiletype}")
 
+    if ct.is_in_vision( mirrored):
+        if ct.get_tile_env(mirrored) != tiletype:
+            possible.discard(d)
+        self.mirroredpoints = [
+            (pos, mirrored, tile, d)
+            for pos, mirrored, tile, d in self.mirroredpoints
+            if d in possible
+        ]
+        print("in mirrored")   
+    else:
+        from builder import run_greedy_mode
+        currentpos= ct.get_position()
+        run_greedy_mode(self, ct,currentpos, mirrored)
+
+    if len(possible)==1:
+        locked= next(iter(possible))
+
+    
+
+def find_the_enemy(self, ct: Controller):
+    print("in snipe")
+    if self.enemycoord!= None:
+        return
+    
     tiles = ct.get_nearby_tiles()
 
-    editedtiles= tiles.copy()
+    editedtiles= set(tiles)
     for tile in tiles:
         if ct.get_tile_env(tile)== Environment.EMPTY:
             editedtiles.discard(tile)
     
-    tiles = editedtiles 
+    tiles = list(editedtiles) 
     symmetry, farpoints = check_symmetry(self, ct, tiles)
 
     if symmetry is not None:
         print ("celebrate")
-    
+        self.enemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
+    elif farpoints is not None:
+        self.mirroredpoints= farpoints
+        orient(self,ct)
 
 
 
-   
-
-
-
-
-
-def far_orient_builder(self, ct: Controller):  
-    #bep
-    x = 0
-
-
-def snipe_the_enemy():
-    x=0
+def snipe_the_enemy(self, ct):
+    if self.enemycoord== None:
+        return
 
 
