@@ -10,8 +10,14 @@ from builder import *
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 
 class Player:
+    ATTACKBOTS =0
+    ATTACKBOTSSPAWNED=0
+
+    HARVESTBOTS=0
+    HARVESTBOTSSPAWNED=0
     def __init__(self):
         self.attack_bots=0
+        self.harvest_bots=0
         self.bot_state= None
         #CORE MEMROY
         self.num_spawned = 0 # number of builder bots spawned so far (core)
@@ -34,6 +40,13 @@ class Player:
             #Opponent core equals
             #Core ((grid_length - CoreAx)-1 , (grid_height - CoreAy) -1)
         elif etype == EntityType.BUILDER_BOT:
+            print(Player.ATTACKBOTSSPAWNED)
+            if self.bot_state== None and Player.ATTACKBOTS != Player.ATTACKBOTSSPAWNED:
+                self.bot_state="ATTACK"
+                print(Player.ATTACKBOTSSPAWNED)
+            elif self.bot_state== None and Player.HARVESTBOTS != Player.HARVESTBOTSSPAWNED:
+                self.bot_state="HARVEST"
+
             builderrun(self, ct)
             # Move towards a target
             # direction = ct.get_position().direction_to(ores)

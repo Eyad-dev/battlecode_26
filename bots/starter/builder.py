@@ -143,12 +143,14 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
 # MAIN ORCHESTRATOR
 # ==========================================
 
+
 def builderrun(self, ct: Controller):
     """
     This is the main function called by main.py.
     It passes the 'self' instance to the modular helper functions.
     """
     current_pos = ct.get_position()
+    print(self.bot_state)
 
     if self.bot_state== "HARVEST":
         # 1. Vision and Harvester check
