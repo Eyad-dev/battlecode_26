@@ -45,8 +45,8 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
     return False
 
 
-def run_bug_mode(self, ct: Controller, current_pos: Position) -> bool:
-    current_dist_sq = (current_pos.x - self.target_ore.x)**2 + (current_pos.y - self.target_ore.y)**2
+def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position ) -> bool:
+    current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     print(f"BUG Mode | Dist: {current_dist_sq} | Hit: {self.hit_distance}")
 
     if current_dist_sq < self.hit_distance:
@@ -55,11 +55,11 @@ def run_bug_mode(self, ct: Controller, current_pos: Position) -> bool:
         return False # Returning False lets it run GREEDY mode on this exact same turn!
     else:
         print("We rotating")
-        check_ore_direction = current_pos.direction_to(self.target_ore)
+        check_ore_direction = current_pos.direction_to(goal_pos)
         test_dir = rotate(self.wall_follow_direction, -2)
         
         # Custom Orthogonal/Diagonal rotation logic
-        if (current_pos.x - self.target_ore.x == 0 or current_pos.y - self.target_ore.y == 0) or (current_pos.x - self.target_ore.x == current_pos.y - self.target_ore.y):
+        if (current_pos.x - goal_pos.x == 0 or current_pos.y - goal_pos.y == 0) or (current_pos.x - goal_pos.x == current_pos.y - goal_pos.y):
             temp_dir = rotate(self.wall_follow_direction, 2)
             if (temp_dir == check_ore_direction):
                 test_dir = rotate(self.wall_follow_direction, 2)
@@ -106,6 +106,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
         self.mode = "BUG"
         self.hit_distance = current_dist_sq
         self.wall_follow_direction = best_dir if best_dir else DIRECTIONS[0]
+        print("jshdfjdshf")
         return True # State changed, wait for next turn to execute BUG
     else:
         if best_pos and ct.can_build_road(best_pos):
@@ -161,7 +162,7 @@ def builderrun(self, ct: Controller):
             
         # 2. State Machine execution
         if self.mode == "BUG":
-            if run_bug_mode(self, ct, current_pos):
+            if run_bug_mode(self, ct, current_pos, self.target_ore):
                 return
 
         if self.mode == "GREEDY":

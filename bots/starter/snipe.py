@@ -80,9 +80,16 @@ def orient(self, ct: Controller):
         ]
         print("in mirrored")   
     else:
-        from builder import run_greedy_mode
+        from builder import run_greedy_mode, run_bug_mode
         currentpos= ct.get_position()
-        run_greedy_mode(self, ct,currentpos, mirrored)
+        self.mode = "GREEDY"
+        if self.mode == "BUG":
+            if run_bug_mode(self, ct,currentpos, mirrored):
+                return
+
+        if self.mode == "GREEDY":
+            if run_greedy_mode(self, ct, currentpos, mirrored):
+                return
 
     if len(possible)==1:
         locked= next(iter(possible))
@@ -107,6 +114,7 @@ def find_the_enemy(self, ct: Controller):
     if symmetry is not None:
         print ("celebrate")
         self.enemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
+        print(self.enemycoord)
     elif farpoints is not None:
         self.mirroredpoints= farpoints
         orient(self,ct)
