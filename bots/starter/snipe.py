@@ -95,12 +95,22 @@ def orient(self, ct: Controller):
         locked= next(iter(possible))
 
     
+def find_local_ore(self, ct: Controller):
+    if self.localorepos !=None:
+        return
+    
+    tiles = ct.get_nearby_tiles()
+    for tile in tiles:
+        if ct.get_tile_env(tile)== Environment.ORE_TITANIUM:
+            self.localorepos= tile
+    
 
 def find_the_enemy(self, ct: Controller):
     print("in snipe")
     if self.enemycoord!= None:
         return
     
+    find_local_ore(self, ct)
     tiles = ct.get_nearby_tiles()
 
     editedtiles= set(tiles)
@@ -110,6 +120,7 @@ def find_the_enemy(self, ct: Controller):
     
     tiles = list(editedtiles) 
     symmetry, farpoints = check_symmetry(self, ct, tiles)
+    self.symmetry = symmetry
 
     if symmetry is not None:
         print ("celebrate")
@@ -121,8 +132,21 @@ def find_the_enemy(self, ct: Controller):
 
 
 
+
+
+
+
+#def reach_enemy_ores(self, ct: Controller):
+
+
+
+
+
 def snipe_the_enemy(self, ct):
+    self.enemyore= mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
     if self.enemycoord== None:
         return
+    
+    
 
 

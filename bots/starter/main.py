@@ -17,6 +17,9 @@ class Player:
         self.mirroredpoints= None
         self.enemycoord= None
         self.ourcoord= None
+        self.localorepos= None
+        self.enemyore= None
+        self.symmetry= None
         # BUILDER BOT MEMORY
         self.bot_state = None
         self.mode = "ROOMBA"
@@ -63,6 +66,7 @@ class Player:
             if self.bot_state == "HARVEST":
                 builderrun(self, ct)
             elif self.bot_state == "ATTACK":
+                builderrun(self, ct)
                 print("fight sound effects :)")
             # Move towards a target
             # direction = ct.get_position().direction_to(ores)
