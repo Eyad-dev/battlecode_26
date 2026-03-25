@@ -9,9 +9,11 @@ CLOCKWISE_DIRS = [
     Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, 
     Direction.WEST, Direction.NORTHWEST
 ]
-STRAIGHT_DIRS = [
-    Direction.NORTH, Direction.EAST, 
-    Direction.SOUTH, Direction.WEST
+BRIDGE_TILES = [
+    (dx, dy)
+    for dx in range(-3,4)
+    for dy in range(-3,4)
+    if 0 < dx**2 + dy**2 <= 9
 ]
 
 def rotate(current_dir, steps_clockwise):
@@ -32,18 +34,29 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
             self.mode = "GREEDY"
             
     if self.target_ore:
-        distance_to_ore_sq = (current_pos.x - self.target_ore.x)**2 + (current_pos.y - self.target_ore.y)**2
-        if distance_to_ore_sq <= 2:
-            if ct.can_build_harvester(self.target_ore):
-                ct.build_harvester(self.target_ore)
-                self.mode = "ROOMBA"
-                self.target_ore = None
-            else:
-                self.mode = "ROOMBA"
-                self.target_ore = None
-            return True # Turn consumed
+        if ct.is_in_vision(self.target_ore):
+            distance_to_ore_sq = (current_pos.x - self.target_ore.x)**2 + (current_pos.y - self.target_ore.y)**2
+            env = ct.get_tile_env(self.target_ore)
+            
+            # Scenario A: We are hunting an Ore
+            if env == Environment.ORE_TITANIUM:
+                if distance_to_ore_sq <= 2:
+                    if ct.can_build_harvester(self.target_ore):
+                        ct.build_harvester(self.target_ore)
+                        self.mode = "BACKTRACK"
+                        self.target_ore = None
+                    return True # Turn consumed (waiting for money or just built)
+                    
+            # Scenario B: We are walking to aa Bridge target
+    if self.target_bridge:
+        distance_to_bridge_sq =  (current_pos.x - self.target_bridge.x)**2 + (current_pos.y - self.target_bridge.y)**2
+        
+        if distance_to_bridge_sq == 0:
+            self.mode = "BACKTRACK"
+            self.target_bridge = None
+            return True # Arrived! Next turn we build.
+            
     return False
-
 
 def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position ) -> bool:
     current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
@@ -102,11 +115,13 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             break
     
     # TRAP DETECTION
-    if best_valid_dist >= current_dist_sq:
+    if best_valid_dist >= current_dist_sq and best_valid_dist:
+        print(best_valid_dist)
+        print(current_dist_sq)
+        print("BUGGGY")
         self.mode = "BUG"
         self.hit_distance = current_dist_sq
         self.wall_follow_direction = best_dir if best_dir else DIRECTIONS[0]
-        print("jshdfjdshf")
         return True # State changed, wait for next turn to execute BUG
     else:
         if best_pos and ct.can_build_road(best_pos):
@@ -121,7 +136,7 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
     move_pos = current_pos.add(self.heading)
 
     check_for_marker = ct.get_tile_building_id(move_pos)
-    if ct.get_entity_type(check_for_marker) != EntityType.MARKER:
+    if check_for_marker is None or ct.get_entity_type(check_for_marker) != EntityType.MARKER:
         if ct.can_build_road(move_pos):
             ct.build_road(move_pos)
 
@@ -140,7 +155,25 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
                 if ct.can_move(self.heading):
                     ct.move(self.heading)
                 break
+def run_backtrack_mode(self, ct: Controller, current_pos: Position, goal_pos:Position):
+    best_target = None
+    min_tile_distance_to_core = 99999
+    for dx, dy in BRIDGE_TILES:
+        target_pos = Position(current_pos.x + dx, current_pos.y + dy)
+        if not(0 <= target_pos.x < ct.get_map_width()) or not(0 <= target_pos.y < ct.get_map_height()):
+            continue
 
+        if ct.get_tile_env(target_pos) == Environment.WALL:
+            continue
+
+        dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
+
+        if dist_sq <= min_tile_distance_to_core:
+            min_tile_distance_to_core = dist_sq
+            best_target = target_pos
+
+    return best_target
+    
 
 # ==========================================
 # MAIN ORCHESTRATOR
@@ -153,25 +186,55 @@ def builderrun(self, ct: Controller):
     It passes the 'self' instance to the modular helper functions.
     """
     current_pos = ct.get_position()
+
     print(self.bot_state)
 
     if self.bot_state== "HARVEST":
         # 1. Vision and Harvester check
         if handle_vision_and_harvesting(self, ct, current_pos):
             return 
-            
+
+        active_goal = self.target_bridge if self.target_bridge else self.target_ore
         # 2. State Machine execution
         if self.mode == "BUG":
-            if run_bug_mode(self, ct, current_pos, self.target_ore):
+            if run_bug_mode(self, ct, current_pos, active_goal):
                 return
 
         if self.mode == "GREEDY":
-            if run_greedy_mode(self, ct, current_pos, self.target_ore):
+            if run_greedy_mode(self, ct, current_pos, active_goal):
                 return
 
         if self.mode == "ROOMBA":
             run_roomba_mode(self, ct, current_pos)
-    
+
+        if self.mode == "BACKTRACK":
+            bridge_pos = run_backtrack_mode(self, ct, current_pos, self.ourcoord)
+            
+            bridge_ti_cost = ct.get_bridge_cost()[0]
+            current_ti = ct.get_global_resources()[0]
+                
+            # Rip up the road under our feet (if there is one)
+            if ct.can_destroy(current_pos):
+                ct.destroy(current_pos)
+                
+            # NOW we can ask permission and build the bridge!
+            print(ct.can_build_bridge(current_pos, bridge_pos))
+            if ct.can_build_bridge(current_pos, bridge_pos):
+                ct.build_bridge(current_pos, bridge_pos)
+
+                dist_to_base_sq = (bridge_pos.x - self.ourcoord.x)**2 + (bridge_pos.y - self.ourcoord.y)**2
+
+                if dist_to_base_sq <= 2:
+                    print("Supply line touching the Core! Back to work.")
+                    self.mode = "ROOMBA"
+                    self.target_bridge = None
+                    self.heading = self.ourcoord.direction_to(current_pos)
+                else:
+                    # Supply line isn't finished. Walk to the end of the bridge!
+                    self.target_bridge = bridge_pos
+                    self.mode = "GREEDY"
+                    
+        return # Ensure we end the turn if we are in BACKTRACK mode!
     elif self.bot_state== "ATTACK":
         find_the_enemy(self, ct)
         #snipe_the_enemy(self, ct)
