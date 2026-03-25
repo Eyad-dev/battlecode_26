@@ -135,12 +135,20 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
     print(f"ROOMBA Mode | Hit Dist: {self.hit_distance}")
     move_pos = current_pos.add(self.heading)
 
-    check_for_marker = ct.get_tile_building_id(move_pos)
-    if check_for_marker is None or ct.get_entity_type(check_for_marker) != EntityType.MARKER:
-        if ct.can_build_road(move_pos):
+
+    is_safe = True
+    if not(0 <= move_pos.x < ct.get_map_width()) or not(0 <= move_pos.y < ct.get_map_height()):
+        is_safe = False
+    else:
+        check_for_marker = ct.get_tile_building_id(move_pos)
+        if check_for_marker is None or ct.get_entity_type(check_for_marker) != EntityType.MARKER:
+            is_safe = True
+            
+            
+    if is_safe and ct.can_build_road(move_pos):
             ct.build_road(move_pos)
 
-    if ct.can_move(self.heading):
+    if is_safe and ct.can_move(self.heading):
         ct.move(self.heading)
     else:
         valid_directions = list(DIRECTIONS)
@@ -148,6 +156,8 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
         
         for d in valid_directions:
             pos = current_pos.add(d)
+            if not(0 <= pos.x < ct.get_map_width()) or not(0 <= pos.y < ct.get_map_height()):
+                continue
             if ct.can_move(d) or ct.can_build_road(pos):
                 self.heading = d
                 if ct.can_build_road(pos):
@@ -163,7 +173,7 @@ def run_backtrack_mode(self, ct: Controller, current_pos: Position, goal_pos:Pos
         if not(0 <= target_pos.x < ct.get_map_width()) or not(0 <= target_pos.y < ct.get_map_height()):
             continue
 
-        if ct.get_tile_env(target_pos) == Environment.WALL:
+        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE:
             continue
 
         dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
