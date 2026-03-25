@@ -10,7 +10,7 @@ def sentinelrun(self, ct:Controller):
     if self.enemycoord != None:
         wrath(self, ct, self.enemycoord)
         return
-    if self.snipecoord == None and self.snipe!= None:
+    if self.snipecoord == None and self.snipe:
         self.snipecoord== self.snipe.pop()
 
     if self.snipecoord != None:

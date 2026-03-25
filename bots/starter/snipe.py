@@ -19,7 +19,6 @@ possible = set(dir)
 
 def movemode(self, ct:Controller, currentpos, destination=None):
     from builder import run_greedy_mode, run_bug_mode, run_roomba_mode
-    self.mode = "GREEDY"
     if self.mode == "BUG":
         if run_bug_mode(self, ct,currentpos, destination):
             return
@@ -115,10 +114,10 @@ def find_local_ore(self, ct: Controller):
     
 
 def find_the_enemy(self, ct: Controller):
-    print("in snipe")
+
     if self.enemycoord!= None:
         return
-    
+    print("in find")
     find_local_ore(self, ct)
     tiles = ct.get_nearby_tiles()
 
@@ -148,9 +147,7 @@ def find_the_enemy(self, ct: Controller):
 def reach_enemy_ores(self, ct: Controller):
     if self.enemyore is None:
         return
-
     currentpos = ct.get_position()
-
     if not ct.is_in_vision(self.enemyore):
         print("moving to enemy ore")
         movemode(self, ct, currentpos, self.enemyore)
@@ -184,6 +181,7 @@ def scan_field_for_bridges(self, ct:Controller):
             bridges.add(tile)
     if len(bridges)>0:
         self.bridges= bridges 
+        self.mode="GREEDY"
         self.attack= "GO"
     else:
         self.mode="ROOMBA"
@@ -256,11 +254,13 @@ def place_sentinels(self, ct: Controller):
 def snipe_the_enemy(self, ct):
     if self.enemycoord== None:
         return
-    
+    print("in snipe")
     if self.attack == None:
+        print("reach ore")
         reach_enemy_ores(self, ct)
         return
     if self.attack == "FIND":
+        print("in find")
         scan_field_for_bridges(self, ct)
         if self.bridges is not None and len(self.bridges) > 0:
             bridge = self.bridges.pop()       
