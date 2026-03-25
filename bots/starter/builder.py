@@ -108,7 +108,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
     best_pos = None
     
     for dist_sq, d, hyp_pos in possible_moves:
-        if ct.can_move(d) or ct.can_build_road(hyp_pos):
+        if (ct.can_move(d) or ct.can_build_road(hyp_pos)) and (ct.get_entity_type(ct.get_tile_building_id(hyp_pos)) != EntityType.MARKER):
             best_valid_dist = dist_sq
             best_dir = d
             best_pos = hyp_pos
@@ -141,10 +141,10 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
         is_safe = False
     else:
         check_for_marker = ct.get_tile_building_id(move_pos)
-        if check_for_marker is None or ct.get_entity_type(check_for_marker) != EntityType.MARKER:
-            is_safe = True
+        if check_for_marker is not None or ct.get_entity_type(check_for_marker) == EntityType.MARKER:
+            is_safe = False
             
-            
+    print(is_safe)
     if is_safe and ct.can_build_road(move_pos):
             ct.build_road(move_pos)
 
@@ -157,6 +157,8 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
         for d in valid_directions:
             pos = current_pos.add(d)
             if not(0 <= pos.x < ct.get_map_width()) or not(0 <= pos.y < ct.get_map_height()):
+                continue
+            if ct.get_entity_type(ct.get_tile_building_id(pos)) == EntityType.MARKER:
                 continue
             if ct.can_move(d) or ct.can_build_road(pos):
                 self.heading = d
@@ -173,7 +175,7 @@ def run_backtrack_mode(self, ct: Controller, current_pos: Position, goal_pos:Pos
         if not(0 <= target_pos.x < ct.get_map_width()) or not(0 <= target_pos.y < ct.get_map_height()):
             continue
 
-        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE:
+        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER:
             continue
 
         dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2

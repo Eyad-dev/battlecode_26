@@ -57,9 +57,10 @@ class Player:
                             self.bot_state = "HARVEST"
                         elif role_id == 2:
                             self.bot_state = "ATTACK"
+                            self.mode = "GREEDY"
                         
                         print(self.bot_state)
-                        break #break from searching any other entity, we got our role
+                        #break from searching any other entity, we got our role
                 
                 
             
