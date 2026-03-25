@@ -17,6 +17,18 @@ def mirror(pos: Position, w,h, d):
 locked = None
 possible = set(dir)
 
+def movemode(self, ct:Position, currentpos, destination):
+    from builder import run_greedy_mode, run_bug_mode
+    self.mode = "GREEDY"
+    if self.mode == "BUG":
+        if run_bug_mode(self, ct,currentpos, destination):
+            return
+
+    if self.mode == "GREEDY":
+        if run_greedy_mode(self, ct, currentpos, destination):
+            return
+
+
 
 def check_symmetry(self, ct: Controller, tiles: list[Position]):
     global possible, locked
@@ -80,16 +92,8 @@ def orient(self, ct: Controller):
         ]
         print("in mirrored")   
     else:
-        from builder import run_greedy_mode, run_bug_mode
         currentpos= ct.get_position()
-        self.mode = "GREEDY"
-        if self.mode == "BUG":
-            if run_bug_mode(self, ct,currentpos, mirrored):
-                return
-
-        if self.mode == "GREEDY":
-            if run_greedy_mode(self, ct, currentpos, mirrored):
-                return
+        movemode(self, ct, currentpos, mirrored)
 
     if len(possible)==1:
         locked= next(iter(possible))
@@ -103,6 +107,7 @@ def find_local_ore(self, ct: Controller):
     for tile in tiles:
         if ct.get_tile_env(tile)== Environment.ORE_TITANIUM:
             self.localorepos= tile
+            return
     
 
 def find_the_enemy(self, ct: Controller):
@@ -125,6 +130,8 @@ def find_the_enemy(self, ct: Controller):
     if symmetry is not None:
         print ("celebrate")
         self.enemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
+        if self.localorepos!= None:
+            self.enemyore= mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
         print(self.enemycoord)
     elif farpoints is not None:
         self.mirroredpoints= farpoints
@@ -136,16 +143,90 @@ def find_the_enemy(self, ct: Controller):
 
 
 
-#def reach_enemy_ores(self, ct: Controller):
+def reach_enemy_ores(self, ct: Controller):
+    if self.enemyore is None:
+        return
+
+    currentpos = ct.get_position()
+
+    if not ct.is_in_vision(self.enemyore):
+        print("moving to enemy ore")
+        movemode(self, ct, currentpos, self.enemyore)
+        return
+
+    id = ct.get_tile_building_id(self.enemyore)
+    harvester_checker = ct.get_entity_type(id)
+
+    if harvester_checker == EntityType.HARVESTER:
+        print("harvester exists")
+        self.attack = "SENTINEL"
+        return
+    distance_to_ore_sq = (currentpos.x - self.enemyore.x)**2 + (currentpos.y - self.enemyore.y)**2
+    if distance_to_ore_sq <= 2:
+        if ct.can_build_harvester(self.enemyore):
+            self.attack = "SENTINEL"
+            ct.build_harvester(self.enemyore)
+            return 
+
+    movemode(self, ct, currentpos, self.enemyore)
 
 
 
+
+
+
+def place_sentinels(self, ct: Controller):
+    if self.enemycoord is None or self.enemyore is None:
+        return
+    
+    if  self.sentinelsbuilt != self.sentinelsconnected:
+        return
+
+    currentpos = ct.get_position()
+
+    directions = [
+        Direction.NORTH,
+        Direction.SOUTH,
+        Direction.EAST,
+        Direction.WEST,
+        Direction.NORTHEAST,
+        Direction.NORTHWEST,
+        Direction.SOUTHEAST,
+        Direction.SOUTHWEST,
+    ]
+
+    for direction in directions:
+        nextpos = currentpos.add(direction)
+        dir = currentpos.direction_to(self.enemycoord)
+
+        if ct.can_build_sentinel(nextpos, dir):
+            print(f"placing sentinel at {nextpos} facing {dir}")
+            self.sentinelsbuilt += 1
+            self.lastsentinelpos = nextpos
+            ct.build_sentinel(nextpos, dir)
+            return
+
+    
+    movemode(self, ct, currentpos, self.enemycoord)
+
+def supply_ammo(self, ct: Controller):
+    if  self.sentinelsbuilt == self.sentinelsconnected:
+        return
+    from builder import run_backtrack_mode
+    run_backtrack_mode(self, ct, self.lastsentinelpos, self.enemyore)
 
 
 def snipe_the_enemy(self, ct):
-    self.enemyore= mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
     if self.enemycoord== None:
         return
+    
+    if self.attack != "SENTINEL":
+        reach_enemy_ores(self, ct)
+        return
+
+    print("i am alive")
+    place_sentinels(self, ct)
+    supply_ammo(self, ct)
     
     
 

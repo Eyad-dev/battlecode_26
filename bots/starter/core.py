@@ -7,7 +7,7 @@ builderstate= ["ATTACK", "HARVEST", "DEFENSE"]
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 def corerrun(self, ct: Controller):
     ores= scan_ore_vision(ct, GameConstants.CORE_VISION_RADIUS_SQ)
-    if self.num_spawned < 3:
+    if self.num_spawned < 6:
             if self.num_spawned <= 3:
                  role_id = 1 # HARVESTER
             else:

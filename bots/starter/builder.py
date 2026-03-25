@@ -300,5 +300,5 @@ def builderrun(self, ct: Controller):
         return # Ensure we end the turn if we are in BACKTRACK mode!
     elif self.bot_state== "ATTACK":
         find_the_enemy(self, ct)
-        #snipe_the_enemy(self, ct)
+        snipe_the_enemy(self, ct)
 

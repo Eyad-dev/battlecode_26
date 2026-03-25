@@ -22,6 +22,11 @@ class Player:
         self.localorepos= None
         self.enemyore= None
         self.symmetry= None
+        self.sentinelsbuilt= 0
+        self.sentinelsconnected=0
+        self.lastsentinelpos= None
+        self.lastsentineldir= None
+        self.attack= None
         # BUILDER BOT MEMORY
         self.bot_state = None
         self.mode = "ROOMBA"
