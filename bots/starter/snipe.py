@@ -17,8 +17,8 @@ def mirror(pos: Position, w,h, d):
 locked = None
 possible = set(dir)
 
-def movemode(self, ct:Position, currentpos, destination):
-    from builder import run_greedy_mode, run_bug_mode
+def movemode(self, ct:Controller, currentpos, destination=None):
+    from builder import run_greedy_mode, run_bug_mode, run_roomba_mode
     self.mode = "GREEDY"
     if self.mode == "BUG":
         if run_bug_mode(self, ct,currentpos, destination):
@@ -27,6 +27,10 @@ def movemode(self, ct:Position, currentpos, destination):
     if self.mode == "GREEDY":
         if run_greedy_mode(self, ct, currentpos, destination):
             return
+    if self.mode == "ROOMBA":
+        if run_roomba_mode(self, ct, currentpos):
+            return
+
 
 
 
@@ -141,8 +145,6 @@ def find_the_enemy(self, ct: Controller):
 
 
 
-
-
 def reach_enemy_ores(self, ct: Controller):
     if self.enemyore is None:
         return
@@ -159,12 +161,12 @@ def reach_enemy_ores(self, ct: Controller):
 
     if harvester_checker == EntityType.HARVESTER:
         print("harvester exists")
-        self.attack = "SENTINEL"
+        self.attack = "FIND"
         return
     distance_to_ore_sq = (currentpos.x - self.enemyore.x)**2 + (currentpos.y - self.enemyore.y)**2
     if distance_to_ore_sq <= 2:
         if ct.can_build_harvester(self.enemyore):
-            self.attack = "SENTINEL"
+            self.attack = "FIND"
             ct.build_harvester(self.enemyore)
             return 
 
@@ -172,63 +174,171 @@ def reach_enemy_ores(self, ct: Controller):
 
 
 
+def scan_field_for_bridges(self, ct:Controller):
+    if self.bridges != None:
+        return
+    tiles = ct.get_nearby_tiles()
+    bridges= set()
+    for tile in tiles:
+        if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.BRIDGE and self.our_team!= ct.get_team(ct.get_tile_building_id(tile)):
+            bridges.add(tile)
+    if len(bridges)>0:
+        self.bridges= bridges 
+        self.attack= "GO"
+    else:
+        self.mode="ROOMBA"
+        movemode(self, ct, ct.get_position())
+        return
 
+
+def move_to_enemy_bridge(self, ct:Controller, bridge:Position):
+    if ct.get_position()!= bridge:
+        movemode(self, ct, ct.get_position(), bridge )
+        return
+    else:
+        self.attack= "DAMAGE"
+
+
+def destroy_the_damn_bridge(self, ct:Controller):
+
+    id = ct.get_tile_building_id(ct.get_position())
+    if ct.get_entity_type(id) == EntityType.BRIDGE:
+        if ct.can_fire(ct.get_position()):
+            ct.fire(ct.get_position())
+        return
+    else:
+        self.attack= "SENTINEL"
+    
 
 
 def place_sentinels(self, ct: Controller):
     if self.enemycoord is None or self.enemyore is None:
         return
     
-    if  self.sentinelsbuilt != self.sentinelsconnected:
-        return
+    if ct.get_position() == self.nextsentinelpos:
 
-    currentpos = ct.get_position()
 
-    directions = [
-        Direction.NORTH,
-        Direction.SOUTH,
-        Direction.EAST,
-        Direction.WEST,
-        Direction.NORTHEAST,
-        Direction.NORTHWEST,
-        Direction.SOUTHEAST,
-        Direction.SOUTHWEST,
-    ]
+        currentpos = ct.get_position()
 
-    for direction in directions:
-        nextpos = currentpos.add(direction)
-        dir = currentpos.direction_to(self.enemycoord)
+        directions = [
+            Direction.NORTH,
+            Direction.SOUTH,
+            Direction.EAST,
+            Direction.WEST,
+            Direction.NORTHEAST,
+            Direction.NORTHWEST,
+            Direction.SOUTHEAST,
+            Direction.SOUTHWEST,
+        ]
 
-        if ct.can_build_sentinel(nextpos, dir):
-            print(f"placing sentinel at {nextpos} facing {dir}")
+        for direction in directions:
+            if ct.can_move(direction):
+                ct.move(direction)
+
+    else:
+        dir = self.nextsentinelpos.direction_to(self.enemycoord)
+
+        if ct.can_build_sentinel(self.nextsentinelpos, dir):
+            print(f"placing sentinel at {self.nextsentinelpos} facing {dir}")
             self.sentinelsbuilt += 1
-            self.lastsentinelpos = nextpos
-            ct.build_sentinel(nextpos, dir)
+
+            ct.build_sentinel(self.nextsentinelpos, dir)
             return
 
-    
-    movemode(self, ct, currentpos, self.enemycoord)
-
-def supply_ammo(self, ct: Controller):
-    from builder import run_backtrack_mode
-
-    if self.sentinelsbuilt == self.sentinelsconnected:
+        self.attack = "FIND"
         return
 
-   
+
+
+
 
 
 def snipe_the_enemy(self, ct):
     if self.enemycoord== None:
         return
     
-    if self.attack != "SENTINEL":
+    if self.attack == None:
         reach_enemy_ores(self, ct)
         return
+    if self.attack == "FIND":
+        scan_field_for_bridges(self, ct)
+        if self.bridges is not None and len(self.bridges) > 0:
+            bridge = self.bridges.pop()       
+            self.nextsentinelpos= bridge
+            self.attack = "GO"
 
-    print("i am alive")
-    place_sentinels(self, ct)
-    supply_ammo(self, ct)
+    if self.attack == "GO":
+        move_to_enemy_bridge(self, ct, self.nextsentinelpos)
+    if self.attack == "DAMAGE":
+        destroy_the_damn_bridge(self, ct)
+    if self.attack == "SENTINEL":
+        place_sentinels(self,ct)
+
+
+
+    
+
+
+
+
+
+
+
+
+#ARCHIVED SENTINEL LOGIV
+
+# def reach_enemy_ores(self, ct: Controller):
+#     if self.enemyore is None:
+#         return
+
+#     currentpos = ct.get_position()
+
+#     if not ct.is_in_vision(self.enemyore):
+#         print("moving to enemy ore")
+#         movemode(self, ct, currentpos, self.enemyore)
+#         return
+
+#     id = ct.get_tile_building_id(self.enemyore)
+#     harvester_checker = ct.get_entity_type(id)
+
+#     if harvester_checker == EntityType.HARVESTER:
+#         print("harvester exists")
+#         self.attack = "SENTINEL"
+#         return
+#     distance_to_ore_sq = (currentpos.x - self.enemyore.x)**2 + (currentpos.y - self.enemyore.y)**2
+#     if distance_to_ore_sq <= 2:
+#         if ct.can_build_harvester(self.enemyore):
+#             self.attack = "SENTINEL"
+#             ct.build_harvester(self.enemyore)
+#             return 
+
+#     movemode(self, ct, currentpos, self.enemyore)
+
+
+
+
+
+
+
+# def supply_ammo(self, ct: Controller):
+
+#     if self.sentinelsbuilt == self.sentinelsconnected:
+#         return
+
+   
+
+
+# def snipe_the_enemy(self, ct):
+#     if self.enemycoord== None:
+#         return
+    
+#     if self.attack != "SENTINEL":
+#         reach_enemy_ores(self, ct)
+#         return
+
+#     print("i am alive")
+#     place_sentinels(self, ct)
+#     supply_ammo(self, ct)
     
     
 

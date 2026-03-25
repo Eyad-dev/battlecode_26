@@ -4,7 +4,7 @@ from cambc import Controller, Direction, EntityType, GameConstants, Environment,
 from scanning import *
 from core import *
 from builder import *
-
+from sentinel import sentinelrun
 
 # non-centre directions
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
@@ -24,9 +24,12 @@ class Player:
         self.symmetry= None
         self.sentinelsbuilt= 0
         self.sentinelsconnected=0
-        self.lastsentinelpos= None
+        self.nextsentinelpos= None
         self.lastsentineldir= None
         self.attack= None
+        self.bridges= None
+        self.snipe= []
+        self.snipecoord= None
         # BUILDER BOT MEMORY
         self.bot_state = None
         self.mode = "ROOMBA"
@@ -102,3 +105,5 @@ class Player:
             # marker_pos = ct.get_position().add(random.choice(DIRECTIONS))
             # if ct.can_place_marker(marker_pos):
             #     ct.place_marker(marker_pos, ct.get_current_round())
+        elif etype == EntityType.SENTINEL:
+            sentinelrun(self,ct)
