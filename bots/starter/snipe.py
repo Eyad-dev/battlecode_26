@@ -215,40 +215,7 @@ def supply_ammo(self, ct: Controller):
     if self.sentinelsbuilt == self.sentinelsconnected:
         return
 
-    currentpos = ct.get_position()
-    bridge_pos = run_backtrack_mode(self, ct, currentpos, self.enemyore)
-
-    print("Current:", currentpos)
-    print("Target:", bridge_pos)
-
-    if bridge_pos is None:
-        print("bridge_pos is None")
-        return
-
-    if bridge_pos == currentpos:
-        print("Same tile → cannot build")
-        return
-
-    if currentpos.distance_squared_to(bridge_pos) > 2:
-        print("NOT ADJACENT → moving instead")
-        self.target_bridge = bridge_pos
-        self.mode = "GREEDY"
-        return
-
-    # Check blocking structure
-    bridge_id = ct.get_tile_building_id(bridge_pos)
-    if bridge_id is not None:
-        print("Tile occupied → trying destroy")
-        if ct.can_destroy(bridge_pos):
-            ct.destroy(bridge_pos)
-        return  # wait next turn
-
-    can_build = ct.can_build_bridge(currentpos, bridge_pos)
-    print("Can build?", can_build)
-
-    if can_build:
-        print("BUILDING BRIDGE")
-        ct.build_bridge(currentpos, bridge_pos)
+   
 
 
 def snipe_the_enemy(self, ct):
