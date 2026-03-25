@@ -11,6 +11,8 @@ DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 
 class Player:
     def __init__(self):
+        #TEAM ID (a or b)
+        self.our_team = None
         #CORE MEMROY
         self.num_spawned = 0 # number of builder bots spawned so far (core)
         self.marker_spawned = False
@@ -51,6 +53,7 @@ class Player:
 
                     if ct.get_entity_type(entity_id) == EntityType.MARKER:
 
+                        self.our_team = ct.get_team(entity_id)
                         role_id = ct.get_marker_value(entity_id)
 
                         if role_id == 1:

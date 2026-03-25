@@ -9,6 +9,9 @@ CLOCKWISE_DIRS = [
     Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, 
     Direction.WEST, Direction.NORTHWEST
 ]
+STRAIGHT_DIRS = [
+    Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
+]
 BRIDGE_TILES = [
     (dx, dy)
     for dx in range(-3,4)
@@ -40,16 +43,32 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
             
             # Scenario A: We are hunting an Ore
             if env == Environment.ORE_TITANIUM:
-                if distance_to_ore_sq <= 2:
-                    if ct.can_build_harvester(self.target_ore):
+                if distance_to_ore_sq == 1 :
+                    if ct.get_entity_type(ct.get_tile_building_id(self.target_ore)) == EntityType.HARVESTER:
+                        self.mode = "BACKTRACK"
+                        self.target_ore = None
+                        return True
+                    
+                    elif ct.can_build_harvester(self.target_ore):
+                        if ct.get_entity_type(ct.get_tile_building_id(self.target_ore)) == EntityType.ROAD:
+                            if ct.get_team(self.target_ore) == self.our_team:
+                                if ct.can_destroy(self.target_ore):
+                                    ct.destroy(self.ore)
+                            else:
+                                self.target_ore = None
+                                return True
                         ct.build_harvester(self.target_ore)
                         self.mode = "BACKTRACK"
                         self.target_ore = None
+                    print("-------")
+                    print("TARGETS")
+                    print(self.target_ore)
+                    print(self.target_bridge)
                     return True # Turn consumed (waiting for money or just built)
                     
             # Scenario B: We are walking to aa Bridge target
     if self.target_bridge:
-        distance_to_bridge_sq =  (current_pos.x - self.target_bridge.x)**2 + (current_pos.y - self.target_bridge.y)**2
+        distance_to_bridge_sq = (current_pos.x - self.target_bridge.x)**2 + (current_pos.y - self.target_bridge.y)**2
         
         if distance_to_bridge_sq == 0:
             self.mode = "BACKTRACK"
@@ -61,6 +80,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
 def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position ) -> bool:
     current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     print(f"BUG Mode | Dist: {current_dist_sq} | Hit: {self.hit_distance}")
+    print(goal_pos)
 
     if current_dist_sq < self.hit_distance:
         self.mode = "GREEDY"
@@ -69,17 +89,26 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
     else:
         print("We rotating")
         check_ore_direction = current_pos.direction_to(goal_pos)
+
         test_dir = rotate(self.wall_follow_direction, -2)
         
         # Custom Orthogonal/Diagonal rotation logic
         if (current_pos.x - goal_pos.x == 0 or current_pos.y - goal_pos.y == 0) or (current_pos.x - goal_pos.x == current_pos.y - goal_pos.y):
+            print("-----------------")
+            print("CHECKS")
+            print("first check")
             temp_dir = rotate(self.wall_follow_direction, 2)
             if (temp_dir == check_ore_direction):
+                print("second check")
                 test_dir = rotate(self.wall_follow_direction, 2)
 
         for _ in range(8):
             test_pos = current_pos.add(test_dir)
-            if ct.can_move(test_dir) or ct.can_build_road(test_pos):
+            print("----------------")
+            print("CHECKS TWO")
+            print(test_pos)
+            print(test_dir)
+            if (ct.can_move(test_dir) or ct.can_build_road(test_pos)) and ct.get_tile_env(test_pos) != Environment.ORE_TITANIUM:
                 if ct.can_build_road(test_pos):
                     ct.build_road(test_pos)
                 if ct.can_move(test_dir):
@@ -95,7 +124,11 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
     print(f"GREEDY Mode | Hit Dist: {self.hit_distance}")
     current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     possible_moves = []
-    
+    print("---------------")
+    print("TARGETS_GREEDY")
+    print(self.target_ore)
+    print(self.target_bridge)
+    print("---------------")
     for d in DIRECTIONS:
         hyp_pos = current_pos.add(d)
         dist_sq = (hyp_pos.x - goal_pos.x)**2 + (hyp_pos.y - goal_pos.y)**2
@@ -108,7 +141,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
     best_pos = None
     
     for dist_sq, d, hyp_pos in possible_moves:
-        if (ct.can_move(d) or ct.can_build_road(hyp_pos)) and (ct.get_entity_type(ct.get_tile_building_id(hyp_pos)) != EntityType.MARKER):
+        if (ct.can_move(d) or ct.can_build_road(hyp_pos)) and (ct.get_entity_type(ct.get_tile_building_id(hyp_pos)) != EntityType.MARKER and (ct.get_tile_env(hyp_pos) != Environment.ORE_TITANIUM)):
             best_valid_dist = dist_sq
             best_dir = d
             best_pos = hyp_pos
@@ -116,9 +149,12 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
     
     # TRAP DETECTION
     if best_valid_dist >= current_dist_sq and best_valid_dist:
+        print("BUGGGY")
         print(best_valid_dist)
         print(current_dist_sq)
-        print("BUGGGY")
+        print(best_pos)
+        print("---------------")
+        
         self.mode = "BUG"
         self.hit_distance = current_dist_sq
         self.wall_follow_direction = best_dir if best_dir else DIRECTIONS[0]
@@ -174,11 +210,18 @@ def run_backtrack_mode(self, ct: Controller, current_pos: Position, goal_pos:Pos
         target_pos = Position(current_pos.x + dx, current_pos.y + dy)
         if not(0 <= target_pos.x < ct.get_map_width()) or not(0 <= target_pos.y < ct.get_map_height()):
             continue
-
-        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER:
+        tile_team_id = ct.get_tile_building_id(target_pos)
+        tile_team = ct.get_team(tile_team_id)
+        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER or (tile_team != self.our_team) or (self.our_team != ct.get_team(ct.get_tile_building_id(current_pos))):
             continue
 
+        current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
         dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
+
+        if ct.get_tile_building_id(target_pos) is not None and  ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.BRIDGE:
+            if dist_sq < current_dist_sq:
+              best_target = target_pos
+              return target_pos
 
         if dist_sq <= min_tile_distance_to_core:
             min_tile_distance_to_core = dist_sq
@@ -203,7 +246,9 @@ def builderrun(self, ct: Controller):
 
     if self.bot_state== "HARVEST":
         # 1. Vision and Harvester check
+        print("If I am stuck")
         if handle_vision_and_harvesting(self, ct, current_pos):
+            print("I will show it here")
             return 
 
         active_goal = self.target_bridge if self.target_bridge else self.target_ore
@@ -221,22 +266,28 @@ def builderrun(self, ct: Controller):
 
         if self.mode == "BACKTRACK":
             bridge_pos = run_backtrack_mode(self, ct, current_pos, self.ourcoord)
-            
-            bridge_ti_cost = ct.get_bridge_cost()[0]
-            current_ti = ct.get_global_resources()[0]
                 
             # Rip up the road under our feet (if there is one)
             if ct.can_destroy(current_pos):
                 ct.destroy(current_pos)
-                
+            
+            is_highway = False
+            check_highway = ct.get_entity_type(ct.get_tile_building_id(bridge_pos))
+            bridges_team_id = ct.get_tile_building_id(bridge_pos)
+            bridges_team = ct.get_team(bridges_team_id)
+            if check_highway is not None and check_highway == EntityType.BRIDGE and bridges_team == self.our_team:
+                is_highway = True
+
             # NOW we can ask permission and build the bridge!
+
             print(ct.can_build_bridge(current_pos, bridge_pos))
+            
             if ct.can_build_bridge(current_pos, bridge_pos):
                 ct.build_bridge(current_pos, bridge_pos)
 
                 dist_to_base_sq = (bridge_pos.x - self.ourcoord.x)**2 + (bridge_pos.y - self.ourcoord.y)**2
 
-                if dist_to_base_sq <= 2:
+                if dist_to_base_sq <= 2 or is_highway:
                     print("Supply line touching the Core! Back to work.")
                     self.mode = "ROOMBA"
                     self.target_bridge = None
