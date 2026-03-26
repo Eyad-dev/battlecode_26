@@ -36,9 +36,12 @@ class Player:
         self.heading = random.choice(DIRECTIONS)
         self.target_ore = None
         self.target_bridge = None
+        self.target_enemy_bridge = None
         self.hit_distance = 999999
         self.wall_follow_direction = None
         self.splitters_built = 0
+        self.bug_start_dir = None
+        self.bridges_limit = 0
     def run(self, ct: Controller) -> None:
         etype = ct.get_entity_type()
         if etype == EntityType.CORE:

@@ -35,7 +35,17 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
         if ores:
             self.target_ore = ores[0]
             self.mode = "GREEDY"
+        else:
+            # --- THE HIGHWAY ROBBER RADAR ---
+            # No ore? Look for enemy bridges to steal!
+            nearby_buildings = ct.get_nearby_buildings()
+            for b_id in nearby_buildings:
+                if ct.get_entity_type(b_id) == EntityType.BRIDGE and ct.get_team(b_id) != self.our_team:
+                    self.target_enemy_bridge = ct.get_position(b_id)
+                    self.mode = "GREEDY"
+                    break
             
+    # Scenario A hunting an ORE
     if self.target_ore:
         if ct.is_in_vision(self.target_ore):
             distance_to_ore_sq = (current_pos.x - self.target_ore.x)**2 + (current_pos.y - self.target_ore.y)**2
@@ -44,16 +54,17 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
             # Scenario A: We are hunting an Ore
             if env == Environment.ORE_TITANIUM:
                 if distance_to_ore_sq == 1 :
+                    road_id = ct.get_entity_type(ct.get_tile_building_id(self.target_ore))
                     if ct.get_entity_type(ct.get_tile_building_id(self.target_ore)) == EntityType.HARVESTER:
                         self.mode = "BACKTRACK"
                         self.target_ore = None
                         return True
                     
                     elif ct.can_build_harvester(self.target_ore):
-                        if ct.get_entity_type(ct.get_tile_building_id(self.target_ore)) == EntityType.ROAD:
-                            if ct.get_team(self.target_ore) == self.our_team:
+                        if road_id == EntityType.ROAD:
+                            if ct.get_team(road_id) == self.our_team:
                                 if ct.can_destroy(self.target_ore):
-                                    ct.destroy(self.ore)
+                                    ct.destroy(self.target_ore)
                             else:
                                 self.target_ore = None
                                 return True
@@ -66,7 +77,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
                     print(self.target_bridge)
                     return True # Turn consumed (waiting for money or just built)
                     
-            # Scenario B: We are walking to aa Bridge target
+    # Scenario B: We are walking to aa Bridge target
     if self.target_bridge:
         distance_to_bridge_sq = (current_pos.x - self.target_bridge.x)**2 + (current_pos.y - self.target_bridge.y)**2
         
@@ -74,7 +85,30 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
             self.mode = "BACKTRACK"
             self.target_bridge = None
             return True # Arrived! Next turn we build.
+    # SCENARIO C
+    if self.target_enemy_bridge:
+        if ct.is_in_vision(self.target_enemy_bridge):
             
+            # Verify the enemy bridge is still there (someone else might have destroyed it!)
+            b_id = ct.get_tile_building_id(self.target_enemy_bridge)
+            if b_id is None or ct.get_team(b_id) == self.our_team or ct.get_entity_type(b_id) != EntityType.BRIDGE:
+                self.target_enemy_bridge = None
+                self.mode = "ROOMBA" # It's gone, go back to wandering
+                return True
+            if current_pos.x == self.target_enemy_bridge.x and current_pos.y == self.target_enemy_bridge.y:
+                # If we are close enough to smash it (Distance 1 or 2)
+                if ct.get_action_cooldown() == 0 and ct.get_global_resources()[0] >= 2:
+                    if ct.can_fire(current_pos):
+                        ct.fire(current_pos)
+                        print("labombalakaka")
+                        check_broken = ct.get_tile_building_id(current_pos)
+                        if check_broken is None or ct.get_entity_type(check_broken) != EntityType.BRIDGE:
+                            print("SMASHED ENEMY HIGHWAY! Hijacking territory...")                        
+                            # Instantly start building our own highway from this spot!
+                            self.mode = "BACKTRACK"
+                            self.target_enemy_bridge = None
+                return True
+    
     return False
 
 def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position ) -> bool:
@@ -203,9 +237,10 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
                 if ct.can_move(self.heading):
                     ct.move(self.heading)
                 break
-def run_backtrack_mode(self, ct: Controller, current_pos: Position, goal_pos:Position):
+def run_backtrack_mode(self, ct: Controller, current_pos: Position, goal_pos:Position, taken_core_tiles: list):
     best_target = None
     min_tile_distance_to_core = 99999
+    current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     for dx, dy in BRIDGE_TILES:
         target_pos = Position(current_pos.x + dx, current_pos.y + dy)
         if not(0 <= target_pos.x < ct.get_map_width()) or not(0 <= target_pos.y < ct.get_map_height()):
@@ -215,13 +250,21 @@ def run_backtrack_mode(self, ct: Controller, current_pos: Position, goal_pos:Pos
         if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER or (tile_team != self.our_team) or (self.our_team != ct.get_team(ct.get_tile_building_id(current_pos))):
             continue
 
-        current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
         dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
+        # if ct.get_tile_building_id(target_pos) is not None and ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.BRIDGE:
+        #     if dist_sq < current_dist_sq:
+        #       best_target = target_pos
+        #       return target_pos
+            
+        if dist_sq <= 2:
+            is_taken=False
+            for taken_pos in taken_core_tiles:
+                if target_pos.x == taken_pos.x and target_pos.y == taken_pos.y:
+                    is_taken = True
+                    break
+            if is_taken:
+                continue
 
-        if ct.get_tile_building_id(target_pos) is not None and  ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.BRIDGE:
-            if dist_sq < current_dist_sq:
-              best_target = target_pos
-              return target_pos
 
         if dist_sq <= min_tile_distance_to_core:
             min_tile_distance_to_core = dist_sq
@@ -251,8 +294,7 @@ def builderrun(self, ct: Controller):
             print("I will show it here")
             return 
 
-        active_goal = self.target_bridge if self.target_bridge else self.target_ore
-        # 2. State Machine execution
+        active_goal = self.target_bridge or self.target_enemy_bridge or self.target_ore        # 2. State Machine execution
         if self.mode == "BUG":
             if run_bug_mode(self, ct, current_pos, active_goal):
                 return
@@ -264,47 +306,59 @@ def builderrun(self, ct: Controller):
         if self.mode == "ROOMBA":
             run_roomba_mode(self, ct, current_pos)
 
-        if self.mode == "BACKTRACK":
-            bridge_pos = run_backtrack_mode(self, ct, current_pos, self.ourcoord)
+        if self.mode == "BACKTRACK":            
+                taken_core_tiles = []
+                nearby_buildings = ct.get_nearby_buildings()
+                for b_id in nearby_buildings:
+                    if ct.get_entity_type(b_id) == EntityType.BRIDGE:
+                        bridge_target = ct.get_bridge_target(b_id)
+                        if (bridge_target.x - self.ourcoord.x)**2 + (bridge_target.y - self.ourcoord.y)**2 <= 2:
+                            taken_core_tiles.append(bridge_target)
 
-
-            bridge_ti_cost = ct.get_bridge_cost()[0]
-            current_ti = ct.get_global_resources()[0]
-
-            if ct.get_action_cooldown() == 0 and current_ti >= bridge_ti_cost:
-
-                # Rip up the road under our feet (if there is one)
-                if ct.can_destroy(current_pos):
-                    ct.destroy(current_pos)
+                bridge_pos = run_backtrack_mode(self, ct, current_pos, self.ourcoord, taken_core_tiles)
                 
-                is_highway = False
-                bridges_team_id = ct.get_tile_building_id(bridge_pos)
-                if bridges_team_id is not None:
-                    check_highway = ct.get_entity_type(bridges_team_id)
-                    bridges_team = ct.get_team(bridges_team_id)
-                    if check_highway == EntityType.BRIDGE and bridges_team == self.our_team:
-                        is_highway = True
-
-                # NOW we can ask permission and build the bridge!
-
-                print(ct.can_build_bridge(current_pos, bridge_pos))
+                if bridge_pos is None:
+                    print("Core is fully occupied")
+                    return
                 
-                if ct.can_build_bridge(current_pos, bridge_pos):
-                    ct.build_bridge(current_pos, bridge_pos)
+                bridge_ti_cost = ct.get_bridge_cost()[0]
+                current_ti = ct.get_global_resources()[0]
 
-                    dist_to_base_sq = (bridge_pos.x - self.ourcoord.x)**2 + (bridge_pos.y - self.ourcoord.y)**2
+                if ct.get_action_cooldown() == 0 and current_ti >= bridge_ti_cost:
 
-                    if dist_to_base_sq <= 2 or is_highway:
-                        print("Supply line touching the Core! Back to work.")
-                        self.mode = "ROOMBA"
-                        self.target_bridge = None
-                        self.heading = self.ourcoord.direction_to(current_pos)
-                    else:
-                        # Supply line isn't finished. Walk to the end of the bridge!
-                        self.target_bridge = bridge_pos
-                        self.mode = "GREEDY"
-                
+                    # Rip up the road under our feet (if there is one)
+                    if ct.can_destroy(current_pos):
+                        ct.destroy(current_pos)
                     
+                    is_highway = False
+                    bridges_team_id = ct.get_tile_building_id(bridge_pos)
+                    if bridges_team_id is not None:
+                        check_highway = ct.get_entity_type(bridges_team_id)
+                        bridges_team = ct.get_team(bridges_team_id)
+                        if check_highway == EntityType.BRIDGE and bridges_team == self.our_team:
+                            is_highway = True
+
+                    # NOW we can ask permission and build the bridge!
+
+                    print(ct.can_build_bridge(current_pos, bridge_pos))
+                    
+                    if ct.can_build_bridge(current_pos, bridge_pos):
+                        ct.build_bridge(current_pos, bridge_pos)
+
+                        dist_to_base_sq = (bridge_pos.x - self.ourcoord.x)**2 + (bridge_pos.y - self.ourcoord.y)**2
+
+
+                        if dist_to_base_sq <= 2 or is_highway:
+                            print("Supply line touching the Core! Back to work.")
+                            self.mode = "ROOMBA"
+                            self.target_bridge = None
+                            self.heading = self.ourcoord.direction_to(current_pos)
+                            # self.bridges_limit += 1
+                        else:
+                            # Supply line isn't finished. Walk to the end of the bridge!
+                            self.target_bridge = bridge_pos
+                            self.mode = "GREEDY"
+                    return
         return # Ensure we end the turn if we are in BACKTRACK mode!
     elif self.bot_state== "ATTACK":
         find_the_enemy(self, ct)
