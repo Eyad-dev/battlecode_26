@@ -30,6 +30,8 @@ def movemode(self, ct:Controller, currentpos, destination=None):
         if run_roomba_mode(self, ct, currentpos):
             return
 
+    return 
+
 
 
 
@@ -94,12 +96,15 @@ def orient(self, ct: Controller):
             if d in possible
         ]
         print("in mirrored")   
+ 
     else:
         currentpos= ct.get_position()
         movemode(self, ct, currentpos, mirrored)
+        return
 
     if len(possible)==1:
         locked= next(iter(possible))
+        return
 
     
 def find_local_ore(self, ct: Controller):
@@ -162,11 +167,12 @@ def reach_enemy_ores(self, ct: Controller):
         return
     distance_to_ore_sq = (currentpos.x - self.enemyore.x)**2 + (currentpos.y - self.enemyore.y)**2
     if distance_to_ore_sq <= 2:
-        if ct.can_build_harvester(self.enemyore):
-            self.attack = "FIND"
+        if ct.can_build_harvester(self.enemyore) and ct.get_action_cooldown() == 0:
             ct.build_harvester(self.enemyore)
+            self.attack = "FIND"
+            return
+        elif ct.get_action_cooldown() > 0:
             return 
-
     movemode(self, ct, currentpos, self.enemyore)
 
 
@@ -267,11 +273,11 @@ def snipe_the_enemy(self, ct):
             self.nextsentinelpos= bridge
             self.attack = "GO"
 
-    if self.attack == "GO":
+    elif self.attack == "GO":
         move_to_enemy_bridge(self, ct, self.nextsentinelpos)
-    if self.attack == "DAMAGE":
+    elif self.attack == "DAMAGE":
         destroy_the_damn_bridge(self, ct)
-    if self.attack == "SENTINEL":
+    elif self.attack == "SENTINEL":
         place_sentinels(self,ct)
 
 

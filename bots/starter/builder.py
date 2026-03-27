@@ -34,7 +34,13 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
         ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
         if ores:
             self.target_ore = ores[0]
+            env = ct.get_tile_env( self.target_ore)
+            existing = ct.get_tile_building_id( self.target_ore)
+            if existing is not None and ct.get_entity_type(existing) == EntityType.HARVESTER:
+                ores.pop(0)
+                self.target_ore = ores[0]
             self.mode = "GREEDY"
+
         else:
             # --- THE HIGHWAY ROBBER RADAR ---
             # No ore? Look for enemy bridges to steal!
@@ -62,15 +68,17 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
                     
                     elif ct.can_build_harvester(self.target_ore):
                         if road_id == EntityType.ROAD:
-                            if ct.get_team(road_id) == self.our_team:
+                            if ct.get_team(ct.get_tile_building_id(self.target_ore)) == self.our_team:
                                 if ct.can_destroy(self.target_ore):
                                     ct.destroy(self.target_ore)
                             else:
                                 self.target_ore = None
                                 return True
-                        ct.build_harvester(self.target_ore)
-                        self.mode = "BACKTRACK"
-                        self.target_ore = None
+                    if ct.can_build_harvester(self.target_ore):
+                        if ct.get_action_cooldown() == 0: 
+                            ct.build_harvester(self.target_ore)
+                            self.mode = "BACKTRACK"
+                            self.target_ore = None
                     print("-------")
                     print("TARGETS")
                     print(self.target_ore)
@@ -175,14 +183,14 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
     best_pos = None
     
     for dist_sq, d, hyp_pos in possible_moves:
-        if (ct.can_move(d) or ct.can_build_road(hyp_pos)) and (ct.get_entity_type(ct.get_tile_building_id(hyp_pos)) != EntityType.MARKER and (ct.get_tile_env(hyp_pos) != Environment.ORE_TITANIUM)):
+        if (ct.can_move(d) or ct.can_build_road(hyp_pos)) and (ct.get_entity_type(ct.get_tile_building_id(hyp_pos)) != EntityType.MARKER and (ct.get_tile_env(hyp_pos) != Environment.ORE_TITANIUM) and (ct.get_tile_env(hyp_pos) != Environment.ORE_AXIONITE)):
             best_valid_dist = dist_sq
             best_dir = d
             best_pos = hyp_pos
             break
     
     # TRAP DETECTION
-    if best_valid_dist >= current_dist_sq and best_valid_dist:
+    if best_valid_dist > current_dist_sq and best_valid_dist:
         print("BUGGGY")
         print(best_valid_dist)
         print(current_dist_sq)
@@ -191,7 +199,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
         
         self.mode = "BUG"
         self.hit_distance = current_dist_sq
-        self.wall_follow_direction = best_dir if best_dir else DIRECTIONS[0]
+        self.wall_follow_direction = best_dir if best_dir else current_pos.direction_to(goal_pos)
         return True # State changed, wait for next turn to execute BUG
     else:
         if best_pos and ct.can_build_road(best_pos):
@@ -211,7 +219,7 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
         is_safe = False
     else:
         check_for_marker = ct.get_tile_building_id(move_pos)
-        if check_for_marker is not None or ct.get_entity_type(check_for_marker) == EntityType.MARKER:
+        if check_for_marker is not None and ct.get_entity_type(check_for_marker) == EntityType.MARKER:
             is_safe = False
             
     print(is_safe)
