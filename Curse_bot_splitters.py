@@ -29,8 +29,100 @@ def rotate(current_dir, steps_clockwise):
     return CLOCKWISE_DIRS[new_index]
 
 # ==========================================
-# CONVEYOR FUNCTIONS
+# SPLITTER & CORE SETUP FUNCTIONS
 # ==========================================
+
+def get_quadrant_splitter_positions(core_pos: Position, map_width: int, map_height: int):
+    """Determine splitter positions based on which quadrant the core is in."""
+    mid_x = map_width / 2
+    mid_y = map_height / 2
+    
+    splitter1 = None
+    splitter2 = None
+    
+    # Determine quadrant
+    is_left = core_pos.x < mid_x
+    is_top = core_pos.y < mid_y
+    
+    # Place splitters 2 tiles away from core center, non-diagonal
+    if is_left:
+        # Core on left side → first splitter to the RIGHT (EAST)
+        splitter1 = Position(core_pos.x + 2, core_pos.y)
+    else:
+        # Core on right side → first splitter to the LEFT (WEST)
+        splitter1 = Position(core_pos.x - 2, core_pos.y)
+    
+    if is_top:
+        # Core on top side → second splitter DOWN (SOUTH)
+        splitter2 = Position(core_pos.x, core_pos.y + 2)
+    else:
+        # Core on bottom side → second splitter UP (NORTH)
+        splitter2 = Position(core_pos.x, core_pos.y - 2)
+    
+    return [splitter1, splitter2]
+
+def get_splitter_direction(core_pos: Position, splitter_pos: Position):
+    """Get the primary output direction for a splitter based on core relative position."""
+    dx = splitter_pos.x - core_pos.x
+    dy = splitter_pos.y - core_pos.y
+    
+    if dx > 0:  # Splitter to the RIGHT
+        return Direction.EAST
+    elif dx < 0:  # Splitter to the LEFT
+        return Direction.WEST
+    elif dy > 0:  # Splitter DOWN
+        return Direction.SOUTH
+    else:  # Splitter UP
+        return Direction.NORTH
+
+def get_gunner_positions(splitter_pos: Position, primary_dir: Direction):
+    """Get the two gunner positions adjacent to splitter outputs."""
+    dirs_list = CLOCKWISE_DIRS
+    primary_idx = dirs_list.index(primary_dir)
+    
+    # Adjacent directions (±1 in circular list)
+    adj1_idx = (primary_idx + 1) % 8
+    adj2_idx = (primary_idx - 1) % 8
+    
+    adj1_dir = dirs_list[adj1_idx]
+    adj2_dir = dirs_list[adj2_idx]
+    
+    gunner1 = splitter_pos.add(adj1_dir)
+    gunner2 = splitter_pos.add(adj2_dir)
+    
+    return [gunner1, gunner2]
+
+def try_build_splitter_network(self, ct: Controller):
+    """Build the 2 splitters for resource distribution at game start."""
+    if self.core_splitter_built:
+        return
+    
+    splitter_positions = get_quadrant_splitter_positions(self.ourcoord, ct.get_map_width(), ct.get_map_height())
+    self.splitter_positions = splitter_positions
+    
+    for splitter_pos in splitter_positions:
+        # Check bounds
+        if not (0 <= splitter_pos.x < ct.get_map_width()) or not (0 <= splitter_pos.y < ct.get_map_height()):
+            continue
+        
+        # Get direction splitter should face (primary output away from core)
+        primary_dir = get_splitter_direction(self.ourcoord, splitter_pos)
+        
+        if ct.get_action_cooldown() == 0:
+            splitter_cost = ct.get_splitter_cost()[0]
+            if ct.get_global_resources()[0] >= splitter_cost:
+                if ct.can_build_splitter(splitter_pos, primary_dir):
+                    ct.build_splitter(splitter_pos, primary_dir)
+                    print(f"[SPLITTER] Built at {splitter_pos} facing {primary_dir}")
+                    self.splitters_built += 1
+    
+    if self.splitters_built == 2:
+        self.core_splitter_built = True
+        # Store gunner positions for later building
+        for splitter_pos in self.splitter_positions:
+            primary_dir = get_splitter_direction(self.ourcoord, splitter_pos)
+            gunners = get_gunner_positions(splitter_pos, primary_dir)
+            self.gunner_positions.extend(gunners)
 
 def cardinal_toward_base(from_pos: Position, base_pos: Position):
     d = from_pos.direction_to(base_pos)
@@ -316,10 +408,6 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                 if landing and ct.get_action_cooldown() == 0:
                     bridge_cost = ct.get_bridge_cost()[0]
                     if ct.get_global_resources()[0] >= bridge_cost:
-                        #check if there is a road beneath us to destroy for bridge placement
-                        if ct.can_destroy(current_pos) and ct.get_entity_type(ct.get_tile_building_id(current_pos)) == EntityType.ROAD:
-                            ct.destroy(current_pos)
-                            print(f"WALL_JUMP: Destroyed road at {current_pos} for bridge placement")
                         if ct.can_build_bridge(current_pos, landing):
                             ct.build_bridge(current_pos, landing)
                             print(f"WALL_JUMP: Built bridge from {current_pos} to {landing}")

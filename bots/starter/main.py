@@ -35,13 +35,19 @@ class Player:
         self.mode = "ROOMBA"
         self.heading = random.choice(DIRECTIONS)
         self.target_ore = None
-        self.target_bridge = None
+        self.target_greedy = None
         self.target_enemy_bridge = None
         self.hit_distance = 999999
         self.wall_follow_direction = None
         self.splitters_built = 0
         self.bug_start_dir = None
         self.bridges_limit = 0
+        self.wall_jump_landing = None
+        self.wall_jump_active = False
+        # SPLITTER & GUNNER MEMORY
+        self.splitter_positions = []
+        self.gunner_positions = []
+        self.core_splitter_built = False
     def run(self, ct: Controller) -> None:
         etype = ct.get_entity_type()
         if etype == EntityType.CORE:

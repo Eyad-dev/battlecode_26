@@ -316,10 +316,6 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                 if landing and ct.get_action_cooldown() == 0:
                     bridge_cost = ct.get_bridge_cost()[0]
                     if ct.get_global_resources()[0] >= bridge_cost:
-                        #check if there is a road beneath us to destroy for bridge placement
-                        if ct.can_destroy(current_pos) and ct.get_entity_type(ct.get_tile_building_id(current_pos)) == EntityType.ROAD:
-                            ct.destroy(current_pos)
-                            print(f"WALL_JUMP: Destroyed road at {current_pos} for bridge placement")
                         if ct.can_build_bridge(current_pos, landing):
                             ct.build_bridge(current_pos, landing)
                             print(f"WALL_JUMP: Built bridge from {current_pos} to {landing}")
