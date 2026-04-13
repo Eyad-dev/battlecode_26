@@ -258,6 +258,8 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
     check_ore_direction = current_pos.direction_to(goal_pos)
     test_dir = rotate(self.wall_follow_direction, -2)
 
+    # Bug nav can get stuck in straight corridors if the goal is directly ahead or behind — add special check to rotate direction if aligned and close to goal
+    # but this thing buggy
     if ((current_pos.x - goal_pos.x == 0 or current_pos.y - goal_pos.y == 0) or
             (current_pos.x - goal_pos.x == current_pos.y - goal_pos.y)) and (current_dist_sq <= 20):
         print(f"[BUG] Orthogonal/diagonal alignment check triggered")
