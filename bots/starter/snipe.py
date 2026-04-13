@@ -159,6 +159,17 @@ def find_the_enemy(self, ct: Controller):
 
 
 
+def reach_enemy_core(self, ct: Controller):
+    if self.enemycoord is None:
+        return
+    currentpos = ct.get_position()
+    if not ct.is_in_vision(self.enemycoord):
+        print("moving to enemy core")
+        self.mode = "GREEDY"
+        movemode(self, ct, currentpos, self.enemycoord)
+        return
+
+
 def reach_enemy_ores(self, ct: Controller):
     if self.enemyore is None:
         return
@@ -187,8 +198,6 @@ def reach_enemy_ores(self, ct: Controller):
     self.mode = "GREEDY"
     movemode(self, ct, currentpos, self.enemyore)
 
-
-
 def scan_field_for_bridges(self, ct:Controller):
     if self.bridges != None:
         return
@@ -205,6 +214,12 @@ def scan_field_for_bridges(self, ct:Controller):
         self.mode="ROOMBA"
         movemode(self, ct, ct.get_position())
         return
+
+def scan_field_for_conveyer_with_titanium(self, ct:Controller):
+
+    
+    
+    return
 
 
 def move_to_enemy_bridge(self, ct:Controller, bridge:Position):
