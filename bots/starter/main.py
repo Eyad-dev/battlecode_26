@@ -55,11 +55,13 @@ class Player:
         self.wall_follow_direction = None
         self.splitters_built = 0
         self.bug_start_dir = None
+        self.current_target = None
         self.bridges_limit = 0
         self.wall_jump_landing = None
         self.wall_jump_active = False
         self.core_tiles = []
         self.axionite_foundary_states = 0
+        self.temp_pos_A_foundary = None
         # SPLITTER & GUNNER MEMORY
         self.splitter_positions = []
         self.gunner_positions = []

@@ -256,47 +256,8 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
         self.mode = "GREEDY"
         self.hit_distance = 999999
         return False
-    
-    print(f"[BUG] Still wall-following | wall_dir={self.wall_follow_direction}")
-    check_ore_direction = current_pos.direction_to(goal_pos)
-    test_dir = rotate(self.wall_follow_direction, -2)
 
-    # Bug nav can get stuck in straight corridors if the goal is directly ahead or behind — add special check to rotate direction if aligned and close to goal
-    # but this thing buggy
-    if ((current_pos.x - goal_pos.x == 0 or current_pos.y - goal_pos.y == 0) or
-            (current_pos.x - goal_pos.x == current_pos.y - goal_pos.y)) and (current_dist_sq <= 20):
-        print(f"[BUG] Orthogonal/diagonal alignment check triggered")
-        temp_dir = rotate(self.wall_follow_direction, 2)
-        if temp_dir == check_ore_direction:
-            print(f"[BUG] Direction correction applied")
-            test_dir = rotate(self.wall_follow_direction, 2)
-
-    for _ in range(8):
-        test_pos = current_pos.add(test_dir)
-        print(f"[BUG] Trying dir={test_dir} | pos={test_pos} | can_build_road={ct.can_build_road(test_pos)}")
-        if ct.can_build_road(test_pos):
-            try_build_road(ct, test_pos)
-            self.wall_follow_direction = test_dir
-        if ct.can_move(test_dir):
-            ct.move(test_dir)
-            print(f"[BUG] Moved {test_dir} to {test_pos}")
-            return True
-        else:
-            # Check if blocked by a friendly bot
-            nearby_entities = ct.get_nearby_entities()
-            blocked_by_bot = False
-            for entity_id in nearby_entities:
-                if ct.get_position(entity_id) == test_pos:
-                    entity_type = ct.get_entity_type(entity_id)
-                    if entity_type in [EntityType.BUILDER_BOT, EntityType.SENTINEL]:
-                        blocked_by_bot = True
-                        break
-            if blocked_by_bot:
-                print(f"[BUG] Blocked by friendly bot at {test_pos} — switching to ROOMBA")
-                return True
-        test_dir = rotate(test_dir, 1)
-
-    print(f"[BUG] Completely trapped — waiting")
+    self.bugnav.move_towards(ct, goal_pos)
     return True
 
 
@@ -334,16 +295,45 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                 self.target_greedy = None
                 self.mode = "ROOMBA"
                 return True
-            
-            if(self.axionite_foundary_states == 2):
-                pass
-            #destorying the last conveyor for the 
+            #Now we want to get a source of titanium and connect it to the foundary we just build when axionite_foundary_state was equal to 2, so we will roomba until we find a titanium ore or a harvester then connect it to the foundary, so we need to set our target after getting the titanium ore to the foundary 
+            #Copilot for gods sake, what do you think is the problem
+            #cmon tell me
+            #You forgot to set the target_greedy to the foundary after finding the titanium ore, so it keeps trying to backtrack to the core instead of going to the foundary to get the source for the foundary, you dummy
+            if (self.axionite_foundary_states == 3):
+                ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
+                found_target = False
+                for ore in ores:
+                    if ct.get_tile_env(ore) == Environment.ORE_TITANIUM:
+                        self.target_greedy = ore
+                        found_target = True
+                        print(f"[GREEDY | BACKTRACK] Found titanium ore at {ore} — setting as new target")
+                        break
+                if not found_target:
+                    # Check for harvesters if no titanium visible
+                    nearby_buildings = ct.get_nearby_buildings()
+                    for b_id in nearby_buildings:
+                        if ct.get_entity_type(b_id) == EntityType.HARVESTER and ct.get_team(b_id) == self.our_team:
+                            harvester_pos = ct.get_position(b_id)
+                            if ct.get_tile_env(harvester_pos) == Environment.ORE_TITANIUM:
+                                self.target_greedy = harvester_pos
+                                found_target = True
+                                print(f"[GREEDY | BACKTRACK] Found friendly harvester on titanium at {harvester_pos} — setting as new target")
+                                break
+                if not found_target:
+                    print(f"[GREEDY | BACKTRACK] No titanium ore or friendly harvesters in sight — continuing to roam")
+
+            if (self.axionite_foundary_states == 2):
+                if ct.can_build_foundry(self.temp_pos_A_foundary):
+                    ct.build_foundry(self.temp_pos_A_foundary)
+                    print(f"[GREEDY | BACKTRACK] Built Axionite Foundry at {self.temp_pos_A_foundary}")
+                    self.axionite_foundary_states = 3   
+            #destorying the last conveyor for the Foundary
             if (next_pos in self.core_tiles and self.axionite_foundary_states == 1):
                 self.axionite_foundary_states = 2
                 splitter_pos = current_pos
                 for d in DIRECTIONS:
                     if ct.can_move(d) :
-                        temp_pos = current_pos.add(d)
+                        self.temp_pos_A_foundary = current_pos.add(d)
                         ct.move(d)
                         break
                 if ct.can_destroy(splitter_pos):
