@@ -2,6 +2,7 @@ import random
 from cambc import Controller, Direction, GameConstants, Position
 from scanning import *
 from snipe import *
+from healer import *
 
 BRIDGE_TILES = [
     (dx, dy)
@@ -333,11 +334,26 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                 self.target_greedy = None
                 self.mode = "ROOMBA"
                 return True
-            #If our next conveyor build will be on one of the core tiles then we reached
+            
+            if(self.axionite_foundary_states == 2):
+                pass
+            #destorying the last conveyor for the 
             if (next_pos in self.core_tiles and self.axionite_foundary_states == 1):
                 self.axionite_foundary_states = 2
-                
+                splitter_pos = current_pos
+                for d in DIRECTIONS:
+                    if ct.can_move(d) :
+                        temp_pos = current_pos.add(d)
+                        ct.move(d)
+                        break
+                if ct.can_destroy(splitter_pos):
+                    ct.destroy(splitter_pos)
+                    print(f"[GREEDY | BACKTRACK] Destroyed conveyor at {splitter_pos} to free up core tile for splitter")
+                return True
             
+                
+
+             
             
             if (next_pos in self.core_tiles):
                 self.target_greedy = None
@@ -542,3 +558,7 @@ def builderrun(self, ct: Controller):
         print(f"[BUILDER RUN] ATTACK mode")
         find_the_enemy(self, ct)
         snipe_the_enemy(self, ct)
+
+    elif self.bot_state == "HEALER":
+        print(f"[BUILDER RUN] HEALER mode")
+        healerrun(ct)
