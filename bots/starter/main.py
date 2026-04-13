@@ -94,6 +94,8 @@ class Player:
                         elif role_id == 2:
                             self.bot_state = "ATTACK"
                             self.mode = "GREEDY"
+                        elif role_id == 3: # HEALER
+                            self.bot_state = "HEALER"
                         
                         print(self.bot_state)
                         #break from searching any other entity, we got our role
