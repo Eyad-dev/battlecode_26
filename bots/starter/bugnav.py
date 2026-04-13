@@ -21,6 +21,7 @@ class BugNav:
         self.turnsmovingtoobstacle=0
         self.lastObstacleFound=None #(Position)
         self.mindisttotarget= float('inf') #int
+        self.minloctotarget = None
         if resetrot:
             self.rotateright=None
             print("resetting bugnav")
