@@ -1,5 +1,4 @@
 import random
-from shutil import move
 from cambc import Controller, Direction, GameConstants, Position
 from helper import *
 
@@ -97,25 +96,7 @@ class BugNav:
             self.rotateright=True
             return
 
-
-    # def move(self,ct:Controller, dir:Direction):
-    #     dist=0
-    #     currentpos=ct.get_position()
-    #     if self.prevtarget is not None:
-    #         dist= distance_squared(currentpos.add(dir), self.prevtarget)
         
-    #     if self.rotateright:
-    #         newdir= dir.rotate_right()
-    #     else:
-    #         newdir= dir.rotate_left()
-    #     newpos= currentpos.add(newdir)
-    #     if ct.can_move(dir) and ct.is_tile_passable(newpos):
-    #         ct.move(dir)
-        
-    def move(self, ct: Controller, dir: Direction):
-        if ct.can_move(dir):
-            ct.move(dir)
-
     def move(self, ct: Controller, dir: Direction):
         if ct.can_move(dir):
             ct.move(dir)
@@ -170,7 +151,7 @@ class BugNav:
 
         width = ct.get_map_width()
         height = ct.get_map_height()
-        for x in range(16):
+        for x in range(8):
             if ct.can_move(dir) and ct.is_tile_passable(ct.get_position().add(dir)):
                 BugNav.move(self,ct, dir)
                 return
@@ -185,7 +166,7 @@ class BugNav:
                 dir= dir.rotate_left()
 
         if ct.can_move(dir) and ct.is_tile_passable(ct.get_position().add(dir)):
-            move(self,ct, dir)
+            BugNav.move(self,ct, dir)
     
             
         
