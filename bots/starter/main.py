@@ -4,6 +4,7 @@ from cambc import Controller, Direction, EntityType, GameConstants, Environment,
 from scanning import *
 from core import *
 from builder import *
+from bugnav import *
 from sentinel import sentinelrun
 
 # non-centre directions
@@ -13,15 +14,7 @@ class Player:
     def __init__(self):
         #the new nav
 
-        #bugnav
-        self.states= set()
-        self.turnsmovingtoobstacle=0
-        self.MAXTURNS=3
-        self.rotateright=True
-        self.lastObstacleFound=None #(Position)
-        self.mindisttotarget= float('inf') #int
-        self.minloctotarget=None #position
-        self.prevtarget=None #position
+        self.bugnav= BugNav()
 
 
         #moveman
