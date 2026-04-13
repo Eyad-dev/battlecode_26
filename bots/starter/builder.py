@@ -73,11 +73,13 @@ def try_build_conveyor(ct: Controller, tile_pos: Position, base_pos: Position):
         if ct.can_fire(tile_pos):
             ct.fire(tile_pos)
             print(f"  [try_build_conveyor] Fired at enemy road at {tile_pos}")
-            return False
+            return True
         else:
             print(f"  [try_build_conveyor] Can't fire at enemy road at {tile_pos} — cooldown {ct.get_action_cooldown()}")
-            return False
+            return True
     direction = cardinal_toward_base(tile_pos, base_pos)
+    if ct.get_entity_type(ct.get_tile_building_id(tile_pos.add(direction))) == EntityType.MARKER:
+        direction = rotate(direction, 2)
     if ct.can_build_conveyor(tile_pos, direction):
         ct.build_conveyor(tile_pos, direction)
         print(f"  [try_build_conveyor] Built at {tile_pos} → {direction}")
@@ -139,11 +141,11 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
     if self.mode == "ROOMBA":
         ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
         for ore_pos in ores:
-            if (ct.get_tile_env(ore_pos) == Environment.ORE_AXIONITE and self.harvested_an_axionite == False):
+            if (ct.get_tile_env(ore_pos) == Environment.ORE_AXIONITE and self.axionite_foundary_states == 0):
                 print(f"[VISION] Axionite ore spotted at {ore_pos} — prioritizing for harvest")
                 self.target_ore = ore_pos
                 self.mode = "GREEDY"
-                self.harvested_an_axionite = True
+                self.axionite_foundary_states = 1
                 return True
         if ores:
             self.target_ore = ores[0]
@@ -253,7 +255,7 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
         self.mode = "GREEDY"
         self.hit_distance = 999999
         return False
-
+    
     print(f"[BUG] Still wall-following | wall_dir={self.wall_follow_direction}")
     check_ore_direction = current_pos.direction_to(goal_pos)
     test_dir = rotate(self.wall_follow_direction, -2)
@@ -332,6 +334,11 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                 self.mode = "ROOMBA"
                 return True
             #If our next conveyor build will be on one of the core tiles then we reached
+            if (next_pos in self.core_tiles and self.axionite_foundary_states == 1):
+                self.axionite_foundary_states = 2
+                
+            
+            
             if (next_pos in self.core_tiles):
                 self.target_greedy = None
                 self.mode = "ROOMBA"
@@ -412,7 +419,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                     break
         
         if blocked_by_bot:
-            print(f"[GREEDY] Blocked by friendly bot at {best_pos} — switching to ROOMBA")
+            print(f"[GREEDY] Blocked by friendly bot at {best_pos} — Waiting")
             return True
 
         print(f"[GREEDY] Trapped — best dist² {best_valid_dist} > current {current_dist_sq} — switching to BUG")

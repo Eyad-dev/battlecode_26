@@ -66,6 +66,7 @@ class Player:
         self.wall_jump_landing = None
         self.wall_jump_active = False
         self.core_tiles = []
+        self.axionite_foundary_states = 0
         # SPLITTER & GUNNER MEMORY
         self.splitter_positions = []
         self.gunner_positions = []
@@ -89,7 +90,7 @@ class Player:
                     if ct.get_entity_type(entity_id) == EntityType.CORE:
                         core_pos = ct.get_position(entity_id)
                         self.ourcoord = core_pos
-
+                        self.core_tiles = [core_pos.add(Direction.NORTH), core_pos.add(Direction.SOUTH), core_pos.add(Direction.EAST), core_pos.add(Direction.WEST), core_pos.add(Direction.NORTHEAST), core_pos.add(Direction.NORTHWEST), core_pos.add(Direction.SOUTHEAST), core_pos.add(Direction.SOUTHWEST)]
                     if ct.get_entity_type(entity_id) == EntityType.MARKER:
 
                         self.our_team = ct.get_team(entity_id)
