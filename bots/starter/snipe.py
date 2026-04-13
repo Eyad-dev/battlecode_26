@@ -84,7 +84,12 @@ def check_symmetry(self, ct: Controller, tiles: list[Position]):
 def orient(self, ct: Controller):
     print("in orient")
     global possible, locked
-    pos, mirrored, tiletype, d = self.mirroredpoints[0][:]
+    if self.current_target is None:
+        pos, mirrored, tiletype, d = self.mirroredpoints[0]
+        self.current_target = mirrored
+        print(f"[TARGET LOCK] Locked target {self.current_target}")
+
+    mirrored = self.current_target
     print(f"Checking point {pos} with mirror {mirrored} and tile type {tiletype}")
 
     if ct.is_in_vision( mirrored):
@@ -96,9 +101,11 @@ def orient(self, ct: Controller):
             if d in possible
         ]
         print("in mirrored")   
- 
     else:
         currentpos= ct.get_position()
+        if self.mode not in ["BUG", "WALL_JUMP"]:
+            self.mode = "GREEDY"
+
         movemode(self, ct, currentpos, mirrored)
         return
 
@@ -142,9 +149,12 @@ def find_the_enemy(self, ct: Controller):
             self.enemyore= mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
         print(self.enemycoord)
     elif farpoints is not None:
-        self.mirroredpoints= farpoints
-        orient(self,ct)
-
+        if self.current_target is None:
+            self.mirroredpoints = farpoints
+            orient(self, ct)
+        else:
+            # keep going toward locked target
+            movemode(self, ct, ct.get_position(), self.current_target)
 
 
 
@@ -155,6 +165,7 @@ def reach_enemy_ores(self, ct: Controller):
     currentpos = ct.get_position()
     if not ct.is_in_vision(self.enemyore):
         print("moving to enemy ore")
+        self.mode = "GREEDY"
         movemode(self, ct, currentpos, self.enemyore)
         return
 
@@ -173,6 +184,7 @@ def reach_enemy_ores(self, ct: Controller):
             return
         elif ct.get_action_cooldown() > 0:
             return 
+    self.mode = "GREEDY"
     movemode(self, ct, currentpos, self.enemyore)
 
 
