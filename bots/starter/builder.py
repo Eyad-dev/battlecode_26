@@ -48,6 +48,13 @@ def try_build_road(ct: Controller, tile_pos: Position):
         ct.build_road(tile_pos)
         print(f"  [try_build_road] Built road at {tile_pos}")
 
+def is_wall_tile(ct: Controller, pos: Position):
+    if not (0 <= pos.x < ct.get_map_width()) or not (0 <= pos.y < ct.get_map_height()):
+        return True
+    env = ct.get_tile_env(pos)
+    return env == Environment.WALL
+
+
 def try_build_conveyor(ct: Controller, tile_pos: Position, base_pos: Position):
     if ct.get_action_cooldown() != 0:
         print(f"  [try_build_conveyor] Skipped — action cooldown {ct.get_action_cooldown()}")
@@ -79,57 +86,47 @@ def try_build_conveyor(ct: Controller, tile_pos: Position, base_pos: Position):
     return False
 
 def find_bridge_target(self, ct: Controller, current_pos: Position, goal_pos: Position, conveyor_dir: Direction):
-    # Find a suitable bridge target, preferring positions beyond walls in the conveyor direction
-    # First, try to find a position directly beyond the wall in conveyor_dir
-    pos = current_pos
-    wall_found = False
-    for _ in range(5):  # Check up to 5 tiles ahead for wall
-        pos = pos.add(conveyor_dir)
-        if not (0 <= pos.x < ct.get_map_width()) or not (0 <= pos.y < ct.get_map_height()):
-            break
-        if is_wall_tile(ct, pos):
-            wall_found = True
-            break
-    
-    if wall_found:
-        # Look for empty tiles beyond the wall
-        for i in range(1, 4):  # Up to 3 tiles beyond wall
-            target_pos = pos
-            for _ in range(i):
-                target_pos = target_pos.add(conveyor_dir)
-            if not (0 <= target_pos.x < ct.get_map_width()) or not (0 <= target_pos.y < ct.get_map_height()):
-                continue
-            if not is_wall_tile(ct, target_pos) and ct.get_tile_building_id(target_pos) is None:
-                dist_to_goal = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
-                if dist_to_goal > 2:  # Not on core
-                    print(f"  [find_bridge_target] Found beyond wall: {target_pos}")
-                    return target_pos
-    
-    # Fallback: original logic
+    taken_core_tiles = []
+    nearby_buildings = ct.get_nearby_buildings()
+    for b_id in nearby_buildings:
+        if ct.get_entity_type(b_id) == EntityType.BRIDGE:
+            bridge_target = ct.get_bridge_target(b_id)
+            if (bridge_target.x - self.ourcoord.x)**2 + (bridge_target.y - self.ourcoord.y)**2 <= 2:
+                taken_core_tiles.append(bridge_target)
+
     best_target = None
-    min_dist = 99999
+    min_tile_distance_to_core = 99999
+    current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     for dx, dy in BRIDGE_TILES:
         target_pos = Position(current_pos.x + dx, current_pos.y + dy)
-        if not (0 <= target_pos.x < ct.get_map_width()) or not (0 <= target_pos.y < ct.get_map_height()):
+        if not(0 <= target_pos.x < ct.get_map_width()) or not(0 <= target_pos.y < ct.get_map_height()):
             continue
-        if ct.get_tile_env(target_pos) == Environment.WALL:
+        tile_team_id = ct.get_tile_building_id(target_pos)
+        tile_team = ct.get_team(tile_team_id)
+        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER or (tile_team != self.our_team) or (self.our_team != ct.get_team(ct.get_tile_building_id(current_pos))):
             continue
-        if ct.get_tile_building_id(target_pos) is not None:
-            continue
-        print(f"  [find_bridge_target] Checking {target_pos}")
-        print(f"    Env: {ct.get_tile_env(target_pos)} | Building: {ct.get_tile_building_id(target_pos)}")
-        dist_to_goal = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
-        if dist_to_goal < min_dist and dist_to_goal > 2:
-            min_dist = dist_to_goal
-            best_target = target_pos
-    print(f"  [find_bridge_target] Selected fallback: {best_target}")
-    return best_target
 
-def is_wall_tile(ct: Controller, pos: Position):
-    if not (0 <= pos.x < ct.get_map_width()) or not (0 <= pos.y < ct.get_map_height()):
-        return True
-    env = ct.get_tile_env(pos)
-    return env == Environment.WALL
+        dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
+        # if ct.get_tile_building_id(target_pos) is not None and ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.BRIDGE:
+        #     if dist_sq < current_dist_sq:
+        #       best_target = target_pos
+        #       return target_pos
+            
+        if dist_sq <= 2:
+            is_taken=False
+            for taken_pos in taken_core_tiles:
+                if target_pos.x == taken_pos.x and target_pos.y == taken_pos.y:
+                    is_taken = True
+                    break
+            if is_taken:
+                continue
+
+
+        if dist_sq <= min_tile_distance_to_core:
+            min_tile_distance_to_core = dist_sq
+            best_target = target_pos
+
+    return best_target
 
 
 # ==========================================
@@ -141,6 +138,13 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
 
     if self.mode == "ROOMBA":
         ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
+        for ore_pos in ores:
+            if (ct.get_tile_env(ore_pos) == Environment.ORE_AXIONITE and self.harvested_an_axionite == False):
+                print(f"[VISION] Axionite ore spotted at {ore_pos} — prioritizing for harvest")
+                self.target_ore = ore_pos
+                self.mode = "GREEDY"
+                self.harvested_an_axionite = True
+                return True
         if ores:
             self.target_ore = ores[0]
             existing = ct.get_tile_building_id(self.target_ore)
@@ -166,7 +170,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
             env = ct.get_tile_env(self.target_ore)
             print(f"[VISION | ORE HUNT] Ore at {self.target_ore} | dist²={distance_to_ore_sq} | env={env}")
 
-            if env == Environment.ORE_TITANIUM:
+            if (env == Environment.ORE_TITANIUM or env == Environment.ORE_AXIONITE):
                 if distance_to_ore_sq == 1:
                     ore_bid = ct.get_tile_building_id(self.target_ore)
                     ore_type = ct.get_entity_type(ore_bid) if ore_bid is not None else None
@@ -211,10 +215,11 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
             self.target_greedy = None
             return True
 
-    # Scenario C: Enemy bridge raiding
+    # Scenario C: Enemy bridge/Road raiding
     if self.target_enemy_bridge:
         if ct.is_in_vision(self.target_enemy_bridge):
             b_id = ct.get_tile_building_id(self.target_enemy_bridge)
+            #bool is_enemy_road = b_id is not None and ct.get_entity_type(b_id) == EntityType.ROAD and ct.get_team(b_id) != self.our_team
             if b_id is None or ct.get_team(b_id) == self.our_team or ct.get_entity_type(b_id) != EntityType.BRIDGE:
                 print(f"[VISION | ENEMY RAID] Enemy bridge at {self.target_enemy_bridge} is gone — back to ROOMBA")
                 self.target_enemy_bridge = None
@@ -229,7 +234,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
                         check_broken = ct.get_tile_building_id(current_pos)
                         if check_broken is None or ct.get_entity_type(check_broken) != EntityType.BRIDGE:
                             print("[VISION | ENEMY RAID] Bridge destroyed — heading back to base")
-                            self.mode = "GREEDY"
+                            self.mode = "BACKTRACK"
                             self.target_enemy_bridge = None
                             self.target_greedy = self.ourcoord
                 else:
@@ -283,7 +288,6 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
                         break
             if blocked_by_bot:
                 print(f"[BUG] Blocked by friendly bot at {test_pos} — switching to ROOMBA")
-                self.mode = "ROOMBA"
                 return True
         test_dir = rotate(test_dir, 1)
 
@@ -292,7 +296,7 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
 
 
 def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
-
+    current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     # ---- BACKTRACK TO BASE: build conveyors on the way back ----
     if goal_pos == self.ourcoord:
         conveyor_dir = cardinal_toward_base(current_pos, self.ourcoord)
@@ -302,43 +306,68 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
         next_pos = current_pos.add(conveyor_dir)
         built_conveyor = False
         if ct.get_action_cooldown() == 0:
-            built_conveyor = try_build_conveyor(ct, next_pos, self.ourcoord)
+            if(ct.get_team(ct.get_tile_building_id(current_pos)) != self.our_team):
+                if ct.can_fire(current_pos):
+                    ct.fire(current_pos)
+                    print(f"[GREEDY | BACKTRACK] Fired at enemy building on current tile {current_pos} to clear way for conveyor")
+                else:
+                    print(f"[GREEDY | BACKTRACK] Can't fire at enemy building on current tile {current_pos} — cooldown {ct.get_action_cooldown()}")
+            else:  
+                built_conveyor = try_build_conveyor(ct, next_pos, self.ourcoord)
 
         # Move toward base onto the conveyor we just built
         if built_conveyor and ct.can_move(conveyor_dir):
             ct.move(conveyor_dir)
             print(f"[GREEDY | BACKTRACK] Moved {conveyor_dir} onto conveyor")
         else:
-            print(f"[GREEDY | BACKTRACK] Can't move {conveyor_dir} — blocked or conveyor not built")
-            # Check if blocked by wall, initiate wall-jump
-            if is_wall_tile(ct, next_pos):
-                landing = find_bridge_target(self, ct, current_pos, self.ourcoord, conveyor_dir)
-                if landing and ct.get_action_cooldown() == 0:
-                    bridge_cost = ct.get_bridge_cost()[0]
-                    if ct.get_global_resources()[0] >= bridge_cost:
-                        #check if there is a road beneath us to destroy for bridge placement
-                        if ct.can_destroy(current_pos) and ct.get_entity_type(ct.get_tile_building_id(current_pos)) == EntityType.ROAD:
-                            ct.destroy(current_pos)
-                            print(f"WALL_JUMP: Destroyed road at {current_pos} for bridge placement")
-                        if ct.can_build_bridge(current_pos, landing):
-                            ct.build_bridge(current_pos, landing)
-                            print(f"WALL_JUMP: Built bridge from {current_pos} to {landing}")
-                            self.wall_jump_active = True
-                            self.wall_jump_landing = landing
-                            self.mode = "WALL_JUMP"
-                            return True
-                        if ct.can_build_bridge(current_pos, landing):
-                            ct.build_bridge(current_pos, landing)
-                            print(f"WALL_JUMP: Built bridge from {current_pos} to {landing}")
-                            self.wall_jump_active = True
-                            self.wall_jump_landing = landing
-                            self.mode = "WALL_JUMP"
-                            return True
+            # Could be facing another bridge already built, first confirm if its on our side, if its not, we move to that tile first, then on the next turn we fire at it (since we will be standing on it, we can only fire if we are standing on it), if its ours, we know have (PROBABLY) made a joint highway connection back to our core so good
+            if(ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) != self.our_team):
+                if (ct.can_move(conveyor_dir)):
+                    ct.move(conveyor_dir)
+            #If its on our side, then we made a joint and we can just roomba from here, we don't need to backtrack anymore, we are already getting our source, so switch to roomba to find more ores and not get stuck on the joint
+            elif(ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
+                self.target_greedy = None
+                self.mode = "ROOMBA"
+                return True
+            #If our next conveyor build will be on one of the core tiles then we reached
+            if (next_pos in self.core_tiles):
+                self.target_greedy = None
+                self.mode = "ROOMBA"
+                return True
+            else:
+                print(f"[GREEDY | BACKTRACK] Can't move {conveyor_dir} — blocked or conveyor not built")
+                # Check if blocked by wall, initiate wall-jump
+                if (is_wall_tile(ct, next_pos) or ct.get_tile_env(next_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(next_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(next_pos)) == EntityType.HARVESTER):
+                    landing = find_bridge_target(self, ct, current_pos, self.ourcoord, conveyor_dir)
+                    print(f"[GREEDY | BACKTRACK] Detected wall at {next_pos} — trying wall jump to {landing}")
+                    if landing and ct.get_action_cooldown() == 0:
+                        bridge_cost = ct.get_bridge_cost()[0]
+                        print("WE RE ABLE TO FIND A LANDING SPOT FOR THE BRIDGE")
+                        if ct.get_global_resources()[0] >= bridge_cost:
+                            #check if there is a road beneath us to destroy for bridge placement
+                            print("WE DID REACH HERE")
+                            
+                            if ct.can_destroy(current_pos) and ct.get_entity_type(ct.get_tile_building_id(current_pos)) == EntityType.CONVEYOR:
+                                ct.destroy(current_pos)
+                                print(f"WALL_JUMP: Destroyed road at {current_pos} for bridge placement")
 
+                            if ct.can_build_bridge(current_pos, landing):
+                                ct.build_bridge(current_pos, landing)
+                                #Check if the bridge landing was on one of the core tiles and if so, We won't continue and bug nav back to base, its already getting its source now, so roomba
+                                if (landing in self.core_tiles or ct.get_entity_type(ct.get_tile_building_id(landing)) == EntityType.CONVEYOR):
+                                    print(f"WALL_JUMP: Bridge landing {landing} is a core tile — switching to ROOMBA")
+                                    self.target_greedy = None
+                                    self.mode = "ROOMBA"
+                                    return True
+                                print(f"WALL_JUMP: Built bridge from {current_pos} to {landing}")
+                                self.wall_jump_landing = landing
+                                landing_dist_sq = (current_pos.x - landing.x)**2 + (current_pos.y - landing.y)**2
+                                self.hit_distance = landing_dist_sq
+                                self.mode = "WALL_JUMP"
+                                return True
         return True
 
     # ---- NORMAL GREEDY: build roads on the way to ore ----
-    current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     print(f"[GREEDY] At {current_pos} | Goal {goal_pos} | dist²={current_dist_sq} | target_ore={self.target_ore} | target_greedy={self.target_greedy}")
 
     possible_moves = []
@@ -382,7 +411,6 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
         
         if blocked_by_bot:
             print(f"[GREEDY] Blocked by friendly bot at {best_pos} — switching to ROOMBA")
-            self.mode = "ROOMBA"
             return True
 
         print(f"[GREEDY] Trapped — best dist² {best_valid_dist} > current {current_dist_sq} — switching to BUG")
@@ -403,7 +431,6 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
 def run_wall_jump_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
     if self.wall_jump_landing and current_pos == self.wall_jump_landing:
         print("WALL_JUMP: Arrived at landing tile, resuming conveyors.")
-        self.wall_jump_active = False
         self.wall_jump_landing = None
         self.mode = "GREEDY"
         return True

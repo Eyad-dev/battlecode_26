@@ -65,6 +65,7 @@ class Player:
         self.bridges_limit = 0
         self.wall_jump_landing = None
         self.wall_jump_active = False
+        self.core_tiles = []
         # SPLITTER & GUNNER MEMORY
         self.splitter_positions = []
         self.gunner_positions = []
