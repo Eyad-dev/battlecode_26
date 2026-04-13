@@ -11,6 +11,27 @@ DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 
 class Player:
     def __init__(self):
+        #the new nav
+
+        #bugnav
+        self.states= set()
+        self.turnsmovingtoobstacle=0
+        self.MAXTURNS=3
+        self.rotateright=True
+        self.lastObstacleFound=None #(Position)
+        self.mindisttotarget= float('inf') #int
+        self.minloctotarget=None #position
+        self.prevtarget=None #position
+
+
+        #moveman
+        self.movemanrotateright=True
+        self.movedir=None #direction
+        self.forbidden= None #boolean array
+        self.lastturnloc=None #position
+        self.pushdir=Direction.CENTRE
+        self.flyingids= set() 
+
         #TEAM ID (a or b)
         self.our_team = None
         #CORE MEMROY
