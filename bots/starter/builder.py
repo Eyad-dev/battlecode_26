@@ -3,6 +3,7 @@ from cambc import Controller, Direction, GameConstants, Position
 from scanning import *
 from snipe import *
 from healer import *
+from bugnav import *
 
 BRIDGE_TILES = [
     (dx, dy)
@@ -137,15 +138,15 @@ def find_bridge_target(self, ct: Controller, current_pos: Position, goal_pos: Po
 # ==========================================
 
 def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) -> bool:
-    print(f"[VISION] Mode={self.mode} | Pos={current_pos} | target_ore={self.target_ore} | target_greedy={self.target_greedy} | target_enemy_bridge={self.target_enemy_bridge}")
+    print(f"[VISION] Mode={self.bugnav.mode} | Pos={current_pos} | target_ore={self.target_ore} | target_greedy={self.target_greedy} | target_enemy_bridge={self.target_enemy_bridge}")
 
-    if self.mode == "ROOMBA":
+    if self.bugnav.mode == "ROOMBA":
         ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
         for ore_pos in ores:
             if (ct.get_tile_env(ore_pos) == Environment.ORE_AXIONITE and self.axionite_foundary_states == 0):
                 print(f"[VISION] Axionite ore spotted at {ore_pos} — prioritizing for harvest")
                 self.target_ore = ore_pos
-                self.mode = "GREEDY"
+                self.bugnav.mode = "GREEDY"
                 self.axionite_foundary_states = 1
                 return True
         if ores:
@@ -156,14 +157,14 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
                 ores.pop(0)
                 self.target_ore = ores[0]
             print(f"[VISION] Ore spotted at {self.target_ore} — switching to GREEDY")
-            self.mode = "GREEDY"
+            self.bugnav.mode = "GREEDY"
         else:
             nearby_buildings = ct.get_nearby_buildings()
             for b_id in nearby_buildings:
                 if ct.get_entity_type(b_id) == EntityType.BRIDGE and ct.get_team(b_id) != self.our_team:
                     self.target_enemy_bridge = ct.get_position(b_id)
                     print(f"[VISION] Enemy bridge spotted at {self.target_enemy_bridge} — switching to GREEDY")
-                    self.mode = "GREEDY"
+                    self.bugnav.mode = "GREEDY"
                     break
 
     # Scenario A: Hunting an ORE
@@ -180,7 +181,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
 
                     if ore_type == EntityType.HARVESTER:
                         print(f"[VISION | ORE HUNT] Ore already harvested — heading back to base")
-                        self.mode = "GREEDY"
+                        self.bugnav.mode = "GREEDY"
                         self.target_ore = None
                         self.target_greedy = self.ourcoord
                         return True
@@ -201,7 +202,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
                             ct.build_harvester(self.target_ore)
                             print(f"[VISION | ORE HUNT] Harvester built — heading back to base")
                             # Switch to BACKTRACK mode to handle conveyor building with destroyed road
-                            self.mode = "BACKTRACK"
+                            self.bugnav.mode = "BACKTRACK"
                             self.target_ore = None
                             self.target_greedy = self.ourcoord
                             return True
@@ -214,7 +215,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
         print(f"[VISION | GREEDY WALK] Target at {self.target_greedy} | dist²={distance_to_target_sq}")
         if distance_to_target_sq == 0:
             print(f"[VISION | GREEDY WALK] Arrived at target — switching to BACKTRACK")
-            self.mode = "BACKTRACK"
+            self.bugnav.mode = "BACKTRACK"
             self.target_greedy = None
             return True
 
@@ -226,7 +227,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
             if b_id is None or ct.get_team(b_id) == self.our_team or ct.get_entity_type(b_id) != EntityType.BRIDGE:
                 print(f"[VISION | ENEMY RAID] Enemy bridge at {self.target_enemy_bridge} is gone — back to ROOMBA")
                 self.target_enemy_bridge = None
-                self.mode = "ROOMBA"
+                self.bugnav.mode = "ROOMBA"
                 return True
             if current_pos.x == self.target_enemy_bridge.x and current_pos.y == self.target_enemy_bridge.y:
                 print(f"[VISION | ENEMY RAID] On enemy bridge tile — attempting to fire")
@@ -237,7 +238,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
                         check_broken = ct.get_tile_building_id(current_pos)
                         if check_broken is None or ct.get_entity_type(check_broken) != EntityType.BRIDGE:
                             print("[VISION | ENEMY RAID] Bridge destroyed — heading back to base")
-                            self.mode = "BACKTRACK"
+                            self.bugnav.mode = "BACKTRACK"
                             self.target_enemy_bridge = None
                             self.target_greedy = self.ourcoord
                 else:
@@ -248,18 +249,14 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
 
 
 def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
-    current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
-    print(f"[BUG] At {current_pos} | Goal {goal_pos} | dist²={current_dist_sq} | hit_dist={self.hit_distance}")
-
-    if current_dist_sq < self.hit_distance:
-        print(f"[BUG] Closer than hit distance — switching to GREEDY")
-        self.mode = "GREEDY"
-        self.hit_distance = 999999
-        return False
-
+    # Check if we should even be in BUG mode. 
+    # If the path is clear, let BugNav know it can try GREEDY.
+    dir_to_target = current_pos.direction_to(goal_pos)
+    if ct.can_move(dir_to_target):
+         self.bugnav.mode = "GREEDY" # Force a transition if the path opened up
+    
     self.bugnav.move_towards(ct, goal_pos)
     return True
-
 
 def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
     current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
@@ -293,7 +290,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             #If its on our side, then we made a joint and we can just roomba from here, we don't need to backtrack anymore, we are already getting our source, so switch to roomba to find more ores and not get stuck on the joint
             elif(ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
                 self.target_greedy = None
-                self.mode = "ROOMBA"
+                self.bugnav.mode = "ROOMBA"
                 return True
             #Now we want to get a source of titanium and connect it to the foundary we just build when axionite_foundary_state was equal to 2, so we will roomba until we find a titanium ore or a harvester then connect it to the foundary, so we need to set our target after getting the titanium ore to the foundary 
             #Copilot for gods sake, what do you think is the problem
@@ -347,7 +344,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             
             if (next_pos in self.core_tiles):
                 self.target_greedy = None
-                self.mode = "ROOMBA"
+                self.bugnav.mode = "ROOMBA"
                 return True
             else:
                 print(f"[GREEDY | BACKTRACK] Can't move {conveyor_dir} — blocked or conveyor not built")
@@ -372,13 +369,13 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                                 if (landing in self.core_tiles or ct.get_entity_type(ct.get_tile_building_id(landing)) == EntityType.CONVEYOR):
                                     print(f"WALL_JUMP: Bridge landing {landing} is a core tile — switching to ROOMBA")
                                     self.target_greedy = None
-                                    self.mode = "ROOMBA"
+                                    self.bugnav.mode = "ROOMBA"
                                     return True
                                 print(f"WALL_JUMP: Built bridge from {current_pos} to {landing}")
                                 self.wall_jump_landing = landing
                                 landing_dist_sq = (current_pos.x - landing.x)**2 + (current_pos.y - landing.y)**2
                                 self.hit_distance = landing_dist_sq
-                                self.mode = "WALL_JUMP"
+                                self.bugnav.mode = "WALL_JUMP"
                                 return True
         return True
 
@@ -429,7 +426,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             return True
 
         print(f"[GREEDY] Trapped — best dist² {best_valid_dist} > current {current_dist_sq} — switching to BUG")
-        self.mode = "BUG"
+        self.bugnav.mode = "BUG"
         self.hit_distance = current_dist_sq
         self.wall_follow_direction = best_dir if best_dir else current_pos.direction_to(goal_pos)
         return True
@@ -447,7 +444,7 @@ def run_wall_jump_mode(self, ct: Controller, current_pos: Position, goal_pos: Po
     if self.wall_jump_landing and current_pos == self.wall_jump_landing:
         print("WALL_JUMP: Arrived at landing tile, resuming conveyors.")
         self.wall_jump_landing = None
-        self.mode = "GREEDY"
+        self.bugnav.mode = "GREEDY"
         return True
     
     # Bug nav to the landing spot
@@ -505,7 +502,7 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
 
 def builderrun(self, ct: Controller):
     current_pos = ct.get_position()
-    print(f"========== [BUILDER RUN] Pos={current_pos} | Mode={self.mode} | State={self.bot_state} ==========")
+    print(f"========== [BUILDER RUN] Pos={current_pos} | Mode={self.bugnav.mode} | State={self.bot_state} ==========")
 
     if self.bot_state == "HARVEST":
 
@@ -516,27 +513,27 @@ def builderrun(self, ct: Controller):
         active_goal = self.target_greedy or self.target_enemy_bridge or self.target_ore
         print(f"[BUILDER RUN] Active goal = {active_goal}")
 
-        if self.mode == "WALL_JUMP":
+        if self.bugnav.mode == "WALL_JUMP":
             if run_wall_jump_mode(self, ct, current_pos, active_goal):
                 return
         
-        if self.mode == "BUG":
+        if self.bugnav.mode == "BUG" or self.bugnav.mode == "WALL" :
             if run_bug_mode(self, ct, current_pos, active_goal):
                 return
 
-        if self.mode == "GREEDY":
+        if self.bugnav.mode == "GREEDY":
             if run_greedy_mode(self, ct, current_pos, active_goal):
                 return
 
-        if self.mode == "ROOMBA":
+        if self.bugnav.mode == "ROOMBA":
             run_roomba_mode(self, ct, current_pos)
 
-        if self.mode == "BACKTRACK":
+        if self.bugnav.mode == "BACKTRACK":
             # Lay conveyor on current tile then switch to GREEDY toward base
             if ct.get_action_cooldown() == 0:
                 try_build_conveyor(ct, current_pos, self.ourcoord)
                 print(f"[BACKTRACK] Done — switching to GREEDY toward base")
-                self.mode = "GREEDY"
+                self.bugnav.mode = "GREEDY"
                 self.target_greedy = self.ourcoord
             else:
                 print(f"[BACKTRACK] Waiting — action cooldown {ct.get_action_cooldown()}")
