@@ -105,7 +105,7 @@ def find_bridge_target(self, ct: Controller, current_pos: Position, goal_pos: Po
             continue
         tile_team_id = ct.get_tile_building_id(target_pos)
         tile_team = ct.get_team(tile_team_id)
-        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER or (tile_team != self.our_team) or (self.our_team != ct.get_team(ct.get_tile_building_id(current_pos))):
+        if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER or (self.our_team != ct.get_team(ct.get_tile_building_id(current_pos))):
             continue
 
         dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
@@ -120,6 +120,7 @@ def find_bridge_target(self, ct: Controller, current_pos: Position, goal_pos: Po
                 continue
 
         if dist_sq <= min_tile_distance_to_core:
+            # if (ct.get_entity_type(tile_team_id) == EntityType.ROAD and tile_team != self.our_team)
             min_tile_distance_to_core = dist_sq
             best_target = target_pos
 
