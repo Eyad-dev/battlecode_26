@@ -21,21 +21,16 @@ def corerrun(self, ct: Controller):
                  role_id = 2 # ATTACKER
                  
             
-            
-            if self.marker_spawned == False:
                 # Place marker on a diagonal to avoid splitter positions
-                for d in DIAGONAL_DIRS:
-                    test_pos = ct.get_position().add(d).add(d)
+            for d in DIAGONAL_DIRS:
+                test_pos = ct.get_position().add(d).add(d)
 
-                    if ct.can_place_marker(test_pos):
-                         ct.place_marker(test_pos, role_id)
-                         self.marker_spawned = True
-                         break
-            else:
-                if ct.can_spawn(spawn_pos):
-                    ct.spawn_builder(spawn_pos)
-                    self.num_spawned += 1
-                    self.marker_spawned = False
+                if ct.can_place_marker(test_pos):
+                        ct.place_marker(test_pos, role_id)
+                        break
+            if ct.can_spawn(spawn_pos):
+                ct.spawn_builder(spawn_pos)
+                self.num_spawned += 1
     if (ct.get_hp() < ct.get_max_hp() and healers_spawned < 10):
          role_id = 3 # HEALER
          if ct.can_spawn(spawn_pos):
