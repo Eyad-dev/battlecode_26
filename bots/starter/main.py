@@ -62,6 +62,8 @@ class Player:
         self.core_tiles = []
         self.axionite_foundary_states = 0
         self.temp_pos_A_foundary = None
+        self.hook_offset = 0
+        self.sweep_dir = 0
         # SPLITTER & GUNNER MEMORY
         self.splitter_positions = []
         self.gunner_positions = []

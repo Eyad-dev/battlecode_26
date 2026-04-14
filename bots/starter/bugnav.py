@@ -90,6 +90,7 @@ class BugNav:
 
         # 1. Target Tracking
         if self.prevtarget is None or distance_squared(self.prevtarget, target) > self.TARGET_MOVED_FAR_THRESH:
+            print(f"[BUGNAV] Significant target move detected (prev: {self.prevtarget}, new: {target}), performing hard reset")
             self._hard_reset(ct)
         self.prevtarget = target
 
@@ -105,6 +106,7 @@ class BugNav:
             self.mindisttotarget = dist_sq
             self.lastObstacleFound = None
             self.mode = "GREEDY"
+            print(f"[BUGNAV] Leave condition met, switching to GREEDY mode. dist_sq={dist_sq}, mindisttotarget={self.mindisttotarget}, next_tile_blocked={self._is_tile_blocked(ct, next_tile)}, can_move={ct.can_move(dir_to_target)}")
 
         # 3. Greedy Navigation
         if self.mode == "GREEDY":
@@ -145,10 +147,11 @@ class BugNav:
             for step in range(8):
                 next_tile = currentpos.add(sweep_dir)
                 is_blocked = self._is_tile_blocked(ct, next_tile)
+                can_build_road = ct.can_build_road(next_tile)
                 can_move_wall = ct.can_move(sweep_dir)
                 friendly_blocking = self._is_friendly_bot_blocking(ct, next_tile)
-                print(f"[BUGNAV WALL] Step {step}: sweep_dir={sweep_dir}, next_tile={next_tile}, is_blocked={is_blocked}, can_move={can_move_wall}, friendly_blocking={friendly_blocking}")
-                
+                print(f"[BUGNAV WALL] Step {step}: sweep_dir={sweep_dir}, next_tile={next_tile}, is_blocked={is_blocked}, can_build_road={can_build_road}, can_move={can_move_wall}, friendly_blocking={friendly_blocking}")
+
                 # Check for friendly bot deadlock
                 if friendly_blocking:
                     print(f"[BUGNAV WALL] Friendly bot detected at {next_tile}, attempting nudges")
@@ -165,13 +168,12 @@ class BugNav:
                     print(f"[BUGNAV WALL] No valid nudges found, staying in place")
                     return 
 
-                move_condition = not is_blocked and can_move_wall
+                move_condition = can_move_wall or can_build_road
                 print(f"[BUGNAV WALL] Move condition check: not_blocked_and_can_move = {move_condition}")
                 if move_condition:
                     road_built = self._try_build_road(ct, next_tile)
                     if road_built: 
                         print(f"[BUGNAV WALL] Built road at {next_tile} during wall follow")
-                        return
                     print(f"[BUGNAV WALL] Moving along wall to {next_tile} in direction {sweep_dir}")
                     ct.move(sweep_dir)
                     return
