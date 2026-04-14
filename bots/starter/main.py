@@ -53,7 +53,7 @@ class Player:
         self.target_enemy_bridge = None
         self.hit_distance = 999999
         self.wall_follow_direction = None
-        self.splitters_built = 0
+        self.splitter_foundry_pos = None
         self.bug_start_dir = None
         self.current_target = None
         self.bridges_limit = 0
