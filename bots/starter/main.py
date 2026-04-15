@@ -21,6 +21,10 @@ class Player:
         self.num_spawned = 0 # number of builder bots spawned so far (core)
         self.marker_spawned = False
         self.mirroredpoints= None
+        self.barrierlocs=set()
+        self.chocked=False
+        self.chockerstate= "STARTER"
+        self.nextchoke=None
         self.enemycoord= None
         self.ourcoord= None
         self.localorepos= None
