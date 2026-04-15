@@ -1,11 +1,13 @@
 import random
 
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
+from snipe import find_the_enemy, snipe_the_enemy
 from scanning import *
 from core import corerrun
 from builder import *
 from sentinel import sentinelrun
 from healer import *
+from axioniter import *
 
 # non-centre directions
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
@@ -99,6 +101,8 @@ class Player:
                             self.mode = "GREEDY"
                         elif role_id == 3: # HEALER
                             self.bot_state = "HEALER"
+                        elif role_id == 67:
+                            self.bot_state = "AXIONITER"
                         
                         print(self.bot_state)
                         #break from searching any other entity, we got our role
@@ -106,45 +110,20 @@ class Player:
                 
             
             if self.bot_state == "HARVEST":
-                marker_check = ct.get_nearby_entities()
-                for id_ in marker_check:
-                    if (ct.get_entity_type(id_) == EntityType.MARKER and ct.get_team(id_) == ct.get_team() and ct.get_marker_value(id_) == 67):
-                        marker_pos = ct.get_position(id_)
-                        print(f"[MARKER] Found marker at {marker_pos} — starting axionite foundry sequence")
-                        self.axionite_foundary_states = 0
-                        if ct.can_destroy(marker_pos):
-                            ct.destroy(marker_pos)
-                            break
                 builderrun(self, ct)
             elif self.bot_state == "ATTACK":
-                builderrun(self, ct)
+                print(f"[BUILDER RUN] ATTACK mode")
+                find_the_enemy(self, ct)
+                snipe_the_enemy(self, ct)
                 print("fight sound effects :)")
             elif self.bot_state == "HEALER":
-                healerrun(self, ct)
-            # Move towards a target
-            # direction = ct.get_position().direction_to(ores)
-            # if ct.can_move(direction):
-            #     ct.move(direction)
-        
-            # # if we are adjacent to an ore tile, build a harvester on it
-            # for d in Direction:
-            #     check_pos = ct.get_position().add(d)
-            #     if ct.can_build_harvester(check_pos):
-            #         ct.build_harvester(check_pos)
-            #         break
-            
-            # # move in a random direction
-            # move_dir = random.choice(DIRECTIONS)
-            # move_pos = ct.get_position().add(move_dir)
-            # # we need to place a conveyor or road to stand on, before we can move onto a tile
-            # if ct.can_build_road(move_pos):
-            #     ct.build_road(move_pos)
-            # if ct.can_move(move_dir):
-            #     ct.move(move_dir)
+                print(f"[BUILDER RUN] HEALER mode")
+                healerrun(self,ct)
+            elif self.bot_state == "AXIONITER":
+                print("AXIONITER ON IT AYEE")
+                axioniterrun(self,ct)
 
-            # # place a marker on an adjacent tile with the current round number
-            # marker_pos = ct.get_position().add(random.choice(DIRECTIONS))
-            # if ct.can_place_marker(marker_pos):
-            #     ct.place_marker(marker_pos, ct.get_current_round())
+
+
         elif etype == EntityType.SENTINEL:
             sentinelrun(self,ct)

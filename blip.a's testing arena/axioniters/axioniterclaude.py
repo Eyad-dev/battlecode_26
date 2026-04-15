@@ -121,7 +121,7 @@ def axioniterrun(self,ct):
         else:
             print(f"[FOUNDRY] Waiting — can't build foundry at {self.temp_pos_A_foundary} yet")
 
-    inaxioniter
+    inaxioniter(self,ct)
 
 
 def inaxioniter(self,ct : Controller):

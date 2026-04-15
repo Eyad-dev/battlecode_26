@@ -15,18 +15,16 @@ def corerrun(self, ct: Controller):
     test_pos2 = None
     test_pos3 = None
     spawn_pos = ct.get_position().add(random.choice(DIRECTIONS))
-    for d in DIAGONAL_DIRS:
-        if (self.axioniter_spawned == False and self.turn_counter == 1500):
-                    test_pos2 = ct.get_position().add(d)
-                    if (ct.can_spawn(test_pos2)):
-                        ct.spawn_builder(test_pos2)
-                        self.axioniter_spawned = True
-                        self.num_spawned += 1
-        if (self.axionite_marker_spawned == False and self.turn_counter == 1500):
-                test_pos3 = test_pos2.add(random.choice(DIRECTIONS))
-                if ct.can_place_marker(test_pos3):
-                    ct.place_marker(test_pos3, 67) # AXIONITE
-                    self.axionite_marker_spawned = True
+    # for d in DIAGONAL_DIRS:
+    #     if (self.axioniter_spawned == False and self.turn_counter >= 1500):
+    #         role_id=67 #axioniter 
+    #         writemarker(self,ct,role_id)
+    #         test_pos2 = ct.get_position().add(d)
+    #         if (ct.can_spawn(test_pos2)):
+    #             ct.spawn_builder(test_pos2)
+    #             self.axioniter_spawned = True
+    #             self.num_spawned += 1
+    #             break
    
     if self.num_spawned < 5:
             if self.num_spawned <= 2:
@@ -39,12 +37,7 @@ def corerrun(self, ct: Controller):
             else:
                  role_id = 2 # ATTACKER
             
-                # Place marker on a diagonal to avoid splitter positions
-            for d in DIAGONAL_DIRS:
-                test_pos = ct.get_position().add(d).add(d)
-                if ct.can_place_marker(test_pos):
-                        ct.place_marker(test_pos, role_id)
-                        break
+            writemarker(self,ct,role_id)
 
             if ct.can_spawn(spawn_pos):
                 ct.spawn_builder(spawn_pos)
@@ -54,3 +47,10 @@ def corerrun(self, ct: Controller):
         
          
 
+def writemarker(self,ct,role_id):
+    # Place marker on a diagonal to avoid splitter positions
+    for d in DIAGONAL_DIRS:
+        test_pos = ct.get_position().add(d).add(d)
+        if ct.can_place_marker(test_pos):
+            ct.place_marker(test_pos, role_id)
+            break

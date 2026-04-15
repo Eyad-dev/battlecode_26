@@ -1,5 +1,6 @@
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position, ResourceType
 from helper import *
+from builder import run_bug_mode,run_greedy_mode,run_roomba_mode, run_wall_jump_mode
 
 
 dir = ["x", "y", "r"]
@@ -19,7 +20,6 @@ locked = None
 possible = set(dir)
 
 def movemode(self, ct:Controller, currentpos, destination=None):
-    from builder import run_greedy_mode, run_bug_mode, run_roomba_mode
     if self.mode == "BUG":
         if run_bug_mode(self, ct,currentpos, destination):
             return
@@ -31,6 +31,9 @@ def movemode(self, ct:Controller, currentpos, destination=None):
         if run_roomba_mode(self, ct, currentpos):
             return
 
+    if self.mode == "WALL_JUMP":
+        if run_wall_jump_mode(self, ct, currentpos, destination):
+            return
     return 
 
 
