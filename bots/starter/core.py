@@ -14,8 +14,8 @@ def corerrun(self, ct: Controller):
     healers_spawned = 0
     spawn_pos = ct.get_position().add(random.choice(DIRECTIONS))
     ores= scan_ore_vision(ct, GameConstants.CORE_VISION_RADIUS_SQ)
-    if self.num_spawned < 1:
-            if self.num_spawned <= 1:
+    if self.num_spawned < 5:
+            if self.num_spawned <= 2:
                  role_id = 1 # HARVESTER
             else:
                  role_id = 2 # ATTACKER
@@ -31,12 +31,12 @@ def corerrun(self, ct: Controller):
             if ct.can_spawn(spawn_pos):
                 ct.spawn_builder(spawn_pos)
                 self.num_spawned += 1
-    if (ct.get_hp() < ct.get_max_hp() and healers_spawned < 10):
+    if (ct.get_hp() < ct.get_max_hp() and healers_spawned < 5):
          role_id = 3 # HEALER
          if ct.can_spawn(spawn_pos):
               ct.spawn_builder(spawn_pos)
               healers_spawned += 1
-              healerrun(self, ct)
+
         
          
 
