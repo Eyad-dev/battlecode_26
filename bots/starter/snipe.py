@@ -1,4 +1,5 @@
-from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
+from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position, ResourceType
+from helper import *
 
 
 dir = ["x", "y", "r"]
@@ -157,49 +158,30 @@ def find_the_enemy(self, ct: Controller):
             movemode(self, ct, ct.get_position(), self.current_target)
 
 
-
-
 def reach_enemy_core(self, ct: Controller):
     if self.enemycoord is None:
         return
     currentpos = ct.get_position()
     if not ct.is_in_vision(self.enemycoord):
-        print("moving to enemy core")
         self.mode = "GREEDY"
+        if self.mode == "GREEDY" and self.prevpos == currentpos:
+            self.mode = "BUG"
+        print("moving to enemy core")
+        self.prevpos = currentpos
+        self.turnstaken= 0
         movemode(self, ct, currentpos, self.enemycoord)
         return
-
-
-def reach_enemy_ores(self, ct: Controller):
-    if self.enemyore is None:
+    elif distance_squared(currentpos, self.enemycoord) > 4:
+        print("moving closer to enemy core")
+        movemode(self, ct, currentpos, self.enemycoord)
         return
-    currentpos = ct.get_position()
-    if not ct.is_in_vision(self.enemyore):
-        print("moving to enemy ore")
-        self.mode = "GREEDY"
-        movemode(self, ct, currentpos, self.enemyore)
-        return
-
-    id = ct.get_tile_building_id(self.enemyore)
-    harvester_checker = ct.get_entity_type(id)
-
-    if harvester_checker == EntityType.HARVESTER:
-        print("harvester exists")
+    else:
         self.attack = "FIND"
+        print("reached enemy core, switching to find mode")
         return
-    distance_to_ore_sq = (currentpos.x - self.enemyore.x)**2 + (currentpos.y - self.enemyore.y)**2
-    if distance_to_ore_sq <= 2:
-        if ct.can_build_harvester(self.enemyore) and ct.get_action_cooldown() == 0:
-            ct.build_harvester(self.enemyore)
-            self.attack = "FIND"
-            return
-        elif ct.get_action_cooldown() > 0:
-            return 
-    self.mode = "GREEDY"
-    movemode(self, ct, currentpos, self.enemyore)
 
 def scan_field_for_bridges(self, ct:Controller):
-    if self.bridges != None:
+    if self.bridges != None :
         return
     tiles = ct.get_nearby_tiles()
     bridges= set()
@@ -208,21 +190,57 @@ def scan_field_for_bridges(self, ct:Controller):
             bridges.add(tile)
     if len(bridges)>0:
         self.bridges= bridges 
-        self.mode="GREEDY"
         self.attack= "GO"
-    else:
-        self.mode="ROOMBA"
-        movemode(self, ct, ct.get_position())
-        return
+    # else:
+    #     currentpos = ct.get_position()
+    #     if distance_squared(currentpos, self.enemycoord) > 10:
+    #         print("moving closer to enemy core")
+    #         movemode(self, ct, currentpos, self.enemycoord)
+    #         return
+    #     else:
+    #         self.mode="ROOMBA"
+    #         movemode(self, ct, ct.get_position())
+    #     return
 
 def scan_field_for_conveyer_with_titanium(self, ct:Controller):
 
+    if self.titaniumconveyor != None :
+        return
     
-    
+    tiles = ct.get_nearby_tiles()
+    conveyors= set()
+    for tile in tiles:
+        if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.CONVEYOR:
+            ct.get_stored_resource(ct.get_tile_building_id(tile)) == ResourceType.TITANIUM
+            conveyors.add(tile)
+            break
+
+    if len(conveyors)>0:
+        self.titaniumconveyor= conveyors 
+        self.attack= "GO"
     return
 
 
 def move_to_enemy_bridge(self, ct:Controller, bridge:Position):
+
+    if self.nextsentinelpos in ct.get_nearby_tiles() and ct.get_tile_builder_bot_id(self.nextsentinelpos) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextsentinelpos))== self.our_team and ct.get_id()!= ct.get_tile_builder_bot_id(self.nextsentinelpos):
+        print("friendly bot is blocking sentinel position, finding new position MOVE TO ENEMY BRIDGE")
+        print("bridges:", self.bridges)
+        print("convs:", self.titaniumconveyor)
+        if self.bridges is not None and self.nextsentinelpos in self.bridges:
+            print("new bridge")
+            self.bridges.discard(self.nextsentinelpos)
+            self.attack == "FIND"
+            return
+        if self.titaniumconveyor is not None and self.nextsentinelpos in self.titaniumconveyor:
+            print("new conveyor")
+            self.attack == "FIND"
+            self.titaniumconveyor.discard(self.nextsentinelpos)
+            return
+        else:
+            self.mode="ROOMBA"
+            movemode(self,ct, ct.get_position())
+            self.attack== "FIND"
     if ct.get_position()!= bridge:
         movemode(self, ct, ct.get_position(), bridge )
         return
@@ -233,7 +251,7 @@ def move_to_enemy_bridge(self, ct:Controller, bridge:Position):
 def destroy_the_damn_bridge(self, ct:Controller):
 
     id = ct.get_tile_building_id(ct.get_position())
-    if ct.get_entity_type(id) == EntityType.BRIDGE:
+    if ct.get_entity_type(id) == EntityType.BRIDGE or ct.get_entity_type(id) == EntityType.CONVEYOR:
         if ct.can_fire(ct.get_position()):
             ct.fire(ct.get_position())
         return
@@ -243,13 +261,19 @@ def destroy_the_damn_bridge(self, ct:Controller):
 
 
 def place_sentinels(self, ct: Controller):
-    if self.enemycoord is None or self.enemyore is None:
+    if self.enemycoord is None :
         return
     
     if ct.get_position() == self.nextsentinelpos:
+        print("at sentinel position, will scoot", self.nextsentinelpos)
 
+        id = ct.get_tile_building_id(ct.get_position())
+        if ct.get_entity_type(id) == EntityType.ROAD:
+            print("there is a tile to break, switching to damage mode")
+            self.attack = "DAMAGE"
+            return
+        
 
-        currentpos = ct.get_position()
 
         directions = [
             Direction.NORTH,
@@ -267,20 +291,39 @@ def place_sentinels(self, ct: Controller):
                 ct.move(direction)
 
     else:
-        dir = self.nextsentinelpos.direction_to(self.enemycoord)
 
+        if ct.get_tile_builder_bot_id(self.nextsentinelpos) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextsentinelpos))== self.our_team:
+            print("friendly bot is blocking sentinel position, finding new position PLACE SENTINEL")
+            if self.bridges is not None and self.nextsentinelpos in self.bridges:
+                self.bridges.discard(self.nextsentinelpos)
+            if self.titaniumconveyor is not None and self.nextsentinelpos in self.titaniumconveyor:
+                self.titaniumconveyor.discard(self.nextsentinelpos)
+                self.attack = "FIND"
+            return
+
+
+        dir = self.nextsentinelpos.direction_to(self.enemycoord)
         if ct.can_build_sentinel(self.nextsentinelpos, dir):
+            print("scooted, placing sentinel now", self.nextsentinelpos)
             print(f"placing sentinel at {self.nextsentinelpos} facing {dir}")
             self.sentinelsbuilt += 1
 
             ct.build_sentinel(self.nextsentinelpos, dir)
+            self.attack = "FIND"
             return
+        else:
+            id = ct.get_tile_building_id(self.nextsentinelpos)
+            if ct.get_entity_type(id) == EntityType.ROAD:
+                print("there is a tile to break, switching to damage mode")
+                self.attack = "DAMAGE"
+                movemode(self,ct,self.nextsentinelpos)
+                return
+            sentinelcost = ct.get_sentinel_cost()
+            titaniumnow= ct.get_global_resources()
+            print(f"cannot build sentinel yet, have {titaniumnow} titanium, need {sentinelcost}")
 
-        self.attack = "FIND"
-        return
 
-
-
+    return
 
 
 
@@ -289,45 +332,47 @@ def snipe_the_enemy(self, ct):
         return
     print("in snipe")
     if self.attack == None:
-        print("reach ore")
-        reach_enemy_ores(self, ct)
+        print("reach core")
+        reach_enemy_core(self, ct)
         return
     if self.attack == "FIND":
-        print("in find")
+        print("in scanning")
         scan_field_for_bridges(self, ct)
+        print("scanned bridges")
+        scan_field_for_conveyer_with_titanium(self, ct)
+        print("scanned titanium conveyor")
         if self.bridges is not None and len(self.bridges) > 0:
             bridge = self.bridges.pop()       
             self.nextsentinelpos= bridge
+            print("in go mode yeaaaa(bridge) with target:", bridge)
             self.attack = "GO"
-
+        elif self.titaniumconveyor is not None and len(self.titaniumconveyor)>0:
+            conveyor = self.titaniumconveyor.pop()
+            self.nextsentinelpos= conveyor
+            print("in go mode yeaaaa(conveyor) with target:", conveyor)
+            self.attack = "GO"
+        else:           print("no targets found, going to roomba")
     elif self.attack == "GO":
+        print("moving to next sentinel pos", self.nextsentinelpos)
+        self.mode = "GREEDY"
         move_to_enemy_bridge(self, ct, self.nextsentinelpos)
     elif self.attack == "DAMAGE":
+        print("destroying nowww")
         destroy_the_damn_bridge(self, ct)
     elif self.attack == "SENTINEL":
+        print("placing sentinels")
         place_sentinels(self,ct)
 
 
 
     
-
-
-
-
-
-
-
-
-#ARCHIVED SENTINEL LOGIV
-
 # def reach_enemy_ores(self, ct: Controller):
 #     if self.enemyore is None:
 #         return
-
 #     currentpos = ct.get_position()
-
 #     if not ct.is_in_vision(self.enemyore):
 #         print("moving to enemy ore")
+#         self.mode = "GREEDY"
 #         movemode(self, ct, currentpos, self.enemyore)
 #         return
 
@@ -336,43 +381,17 @@ def snipe_the_enemy(self, ct):
 
 #     if harvester_checker == EntityType.HARVESTER:
 #         print("harvester exists")
-#         self.attack = "SENTINEL"
+#         self.attack = "FIND"
 #         return
 #     distance_to_ore_sq = (currentpos.x - self.enemyore.x)**2 + (currentpos.y - self.enemyore.y)**2
 #     if distance_to_ore_sq <= 2:
-#         if ct.can_build_harvester(self.enemyore):
-#             self.attack = "SENTINEL"
+#         if ct.can_build_harvester(self.enemyore) and ct.get_action_cooldown() == 0:
 #             ct.build_harvester(self.enemyore)
+#             self.attack = "FIND"
+#             return
+#         elif ct.get_action_cooldown() > 0:
 #             return 
-
+#     self.mode = "GREEDY"
 #     movemode(self, ct, currentpos, self.enemyore)
-
-
-
-
-
-
-
-# def supply_ammo(self, ct: Controller):
-
-#     if self.sentinelsbuilt == self.sentinelsconnected:
-#         return
-
-   
-
-
-# def snipe_the_enemy(self, ct):
-#     if self.enemycoord== None:
-#         return
-    
-#     if self.attack != "SENTINEL":
-#         reach_enemy_ores(self, ct)
-#         return
-
-#     print("i am alive")
-#     place_sentinels(self, ct)
-#     supply_ammo(self, ct)
-    
-    
 
 

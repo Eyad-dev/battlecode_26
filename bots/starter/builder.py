@@ -25,6 +25,8 @@ DIAGONAL_DIRS = [
 ]
 
 def rotate(current_dir, steps_clockwise):
+    if current_dir == Direction.CENTRE :
+        return random.choice(DIRECTIONS) 
     current_index = CLOCKWISE_DIRS.index(current_dir)
     new_index = (current_index + steps_clockwise) % 8
     return CLOCKWISE_DIRS[new_index]
@@ -340,6 +342,8 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
             nearby_entities = ct.get_nearby_entities()
             blocked_by_bot = False
             for entity_id in nearby_entities:
+                if entity_id == ct.get_id():
+                    continue
                 if ct.get_position(entity_id) == test_pos:
                     entity_type = ct.get_entity_type(entity_id)
                     if entity_type in [EntityType.BUILDER_BOT, EntityType.SENTINEL]:
@@ -347,6 +351,7 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
                         break
             if blocked_by_bot:
                 print(f"[BUG] Blocked by friendly bot at {test_pos} — switching to ROOMBA")
+                self.mode = "ROOMBA"
                 return True
         print(f"[BUG] Can't move {test_dir} — rotating to {rotate(test_dir, 1)}")
         test_dir = rotate(test_dir, 1)

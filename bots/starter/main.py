@@ -4,26 +4,14 @@ from cambc import Controller, Direction, EntityType, GameConstants, Environment,
 from scanning import *
 from core import *
 from builder import *
-from bugnav import *
 from sentinel import sentinelrun
+from healer import *
 
 # non-centre directions
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
 
 class Player:
     def __init__(self):
-        #the new nav
-
-        self.bugnav= BugNav()
-
-
-        #moveman
-        self.movemanrotateright=True
-        self.movedir=None #direction
-        self.forbidden= None #boolean array
-        self.lastturnloc=None #position
-        self.pushdir=Direction.CENTRE
-        self.flyingids= set() 
 
         #TEAM ID (a or b)
         self.our_team = None
@@ -42,9 +30,17 @@ class Player:
         self.lastsentineldir= None
         self.attack= None
         self.bridges= None
+        self.turnstaken= 0
+        self.prevpos= None
         self.snipe= []
         self.snipecoord= None
+        self.bugging = False
+        self.bug_start_dist = 999999
+        self.bug_dir = None
+        self.bug_side = 1  # +1 = right-hand, -1 = left-hand
         # BUILDER BOT MEMORY
+        self.titaniumconveyor = None
+        self.scanningmode = "bridge"
         self.bot_state = None
         self.mode = "ROOMBA"
         self.heading = random.choice(DIRECTIONS)
@@ -111,6 +107,8 @@ class Player:
             elif self.bot_state == "ATTACK":
                 builderrun(self, ct)
                 print("fight sound effects :)")
+            elif self.bot_state == "HEALER":
+                healerrun(self, ct)
             # Move towards a target
             # direction = ct.get_position().direction_to(ores)
             # if ct.can_move(direction):
