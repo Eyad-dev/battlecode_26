@@ -2,7 +2,7 @@ import random
 
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
 from scanning import *
-from core import *
+from core import corerrun
 from builder import *
 from sentinel import sentinelrun
 from healer import *

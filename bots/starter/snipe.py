@@ -251,7 +251,7 @@ def move_to_enemy_bridge(self, ct:Controller, bridge:Position):
 def destroy_the_damn_bridge(self, ct:Controller):
 
     id = ct.get_tile_building_id(ct.get_position())
-    if ct.get_entity_type(id) == EntityType.BRIDGE or ct.get_entity_type(id) == EntityType.CONVEYOR:
+    if ct.get_entity_type(id) == EntityType.BRIDGE or ct.get_entity_type(id) == EntityType.CONVEYOR or ct.get_entity_type(id) == EntityType.ROAD:
         if ct.can_fire(ct.get_position()):
             ct.fire(ct.get_position())
         return

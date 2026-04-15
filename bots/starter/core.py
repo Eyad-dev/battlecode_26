@@ -2,7 +2,6 @@ from scanning import *
 import random
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
 from healer import *
-from main import *
 
 builderstate= ["ATTACK", "HARVEST", "HEALER"]
 
@@ -17,13 +16,13 @@ def corerrun(self, ct: Controller):
     test_pos3 = None
     spawn_pos = ct.get_position().add(random.choice(DIRECTIONS))
     for d in DIAGONAL_DIRS:
-        if (self.axioniter_spawned == False ):
+        if (self.axioniter_spawned == False and self.turn_counter == 1500):
                     test_pos2 = ct.get_position().add(d)
                     if (ct.can_spawn(test_pos2)):
                         ct.spawn_builder(test_pos2)
                         self.axioniter_spawned = True
                         self.num_spawned += 1
-        if (self.axionite_marker_spawned == False):
+        if (self.axionite_marker_spawned == False and self.turn_counter == 1500):
                 test_pos3 = test_pos2.add(random.choice(DIRECTIONS))
                 if ct.can_place_marker(test_pos3):
                     ct.place_marker(test_pos3, 67) # AXIONITE
