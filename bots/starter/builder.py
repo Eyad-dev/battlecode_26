@@ -111,7 +111,6 @@ def find_bridge_target(self, ct: Controller, current_pos: Position, goal_pos: Po
         if not(0 <= target_pos.x < ct.get_map_width()) or not(0 <= target_pos.y < ct.get_map_height()):
             continue
         tile_team_id = ct.get_tile_building_id(target_pos)
-        tile_team = ct.get_team(tile_team_id)
         if ct.get_tile_env(target_pos) == Environment.WALL or ct.get_tile_env(target_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(target_pos) == Environment.ORE_AXIONITE or ct.get_entity_type(ct.get_tile_building_id(target_pos)) == EntityType.MARKER or (self.our_team != ct.get_team(ct.get_tile_building_id(current_pos))):
             continue
 
@@ -171,6 +170,7 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
         ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
         for ore_pos in ores:
             if (ct.get_tile_env(ore_pos) == Environment.ORE_AXIONITE and self.axionite_foundary_states == 0):
+                print("I AXIONITE BABYYYYY")
                 print(f"[VISION] Axionite ore spotted at {ore_pos} — prioritizing for harvest")
                 self.target_ore = ore_pos
                 self.mode = "GREEDY"
@@ -355,7 +355,8 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
                         blocked_by_bot = True
                         break
             if blocked_by_bot:
-                print(f"[BUG] Blocked by friendly bot at {test_pos} — waiting")
+                print(f"[BUG] Blocked by friendly bot at {test_pos} — ROOMBA")
+                self.mode = "ROOMBA"
                 return True
         print(f"[BUG] Can't move {test_dir} — rotating to {rotate(test_dir, 1)}")
         test_dir = rotate(test_dir, 1)
@@ -400,7 +401,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             elif (goal_pos != self.ourcoord):
                 try_build_road(ct, cardinal_toward_base(current_pos, goal_pos))
             else:
-                print("[GREEDY | BACKTRACK] At base — no need to build roads")
+                print("[GREEDY | BACKTRACK] At goal — no need to build roads")
                 built_conveyor = try_build_conveyor(self, ct, next_pos, goal_pos)
 
         if built_conveyor and ct.can_move(conveyor_dir):
@@ -410,11 +411,14 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             if(ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) != self.our_team):
                 if (ct.can_move(conveyor_dir)):
                     ct.move(conveyor_dir)
-            elif((ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR or ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.BRIDGE) and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
+            elif self.axionite_foundary_states == 6 and ((ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR or ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.BRIDGE) and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
                 self.target_greedy = None
                 self.mode = "ROOMBA"
                 return True
-
+            elif self.axionite_foundary_states < 6 and (ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
+                if ct.can_move(conveyor_dir):
+                    ct.move(conveyor_dir)
+                return True
             if (next_pos in self.core_tiles):
                 self.target_greedy = None
                 self.mode = "ROOMBA"
@@ -434,7 +438,13 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                                 print(f"WALL_JUMP: Destroyed road at {current_pos} for bridge placement")
                             if ct.can_build_bridge(current_pos, landing):
                                 ct.build_bridge(current_pos, landing)
-                                if (landing in self.core_tiles or landing == self.ourcoord or ct.get_entity_type(ct.get_tile_building_id(landing)) == EntityType.CONVEYOR):
+                                
+                                if ((landing in self.core_tiles or landing == self.ourcoord or ct.get_entity_type(ct.get_tile_building_id(landing)) == EntityType.CONVEYOR) and self.axionite_foundary_states == 2):
+                                    print(f"WALL_JUMP: Bridge landing {landing} is a core tile — switching to ROOMBA")
+                                    self.target_greedy = None
+                                    self.mode = "ROOMBA"
+                                    return True
+                                if (landing in self.core_tiles or landing == self.ourcoord or (ct.get_entity_type(ct.get_tile_building_id(landing)) == EntityType.CONVEYOR and ct.get_team(ct.get_tile_building_id(landing)) == self.our_team) or (ct.get_entity_type(ct.get_tile_building_id(landing)) == EntityType.BRIDGE and ct.get_team(ct.get_tile_building_id(landing)) == self.our_team)):
                                     print(f"WALL_JUMP: Bridge landing {landing} is a core tile — switching to ROOMBA")
                                     self.target_greedy = None
                                     self.mode = "ROOMBA"
@@ -470,7 +480,8 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
         if (ct.can_move(d) or ct.can_build_road(hyp_pos)) \
                 and not is_marker \
                 and env != Environment.ORE_TITANIUM \
-                and env != Environment.ORE_AXIONITE:
+                and env != Environment.ORE_AXIONITE \
+                and not (self.axionite_foundary_states > 0 and ct.get_entity_type(ct.get_tile_building_id(hyp_pos)) in [EntityType.CONVEYOR, EntityType.BRIDGE] and ct.get_team(ct.get_tile_building_id(hyp_pos)) == self.our_team):
             best_valid_dist = dist_sq
             best_dir = d
             best_pos = hyp_pos
@@ -569,12 +580,13 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
 def builderrun(self, ct: Controller):
     current_pos = ct.get_position()
     print(f"========== [BUILDER RUN] Pos={current_pos} | Mode={self.mode} | State={self.bot_state} ==========")
+    #Checking for axioniter state with the marker
 
     # -------------------------------------------------------
     # FOUNDRY BUILD CHECK — runs every turn, no matter mode!
     # -------------------------------------------------------
     #I want when the bot finds now a titanium ore after finishing the ROOMBA in axionite_foundary_states == 3, in 4 I want to now go back to the foundary position (building conveyors to there) (found at self.temp_pos_A_foundary) and set this as my target_greedy, I need to connect that titanium ore that I found back to the foundary with conveyors and then when I arrive at the foundary position I want to go back to roomba
-    
+
     if self.axionite_foundary_states == 5:
         conveyor_dir = cardinal_toward_base(current_pos, self.splitter_foundry_pos)
         next_pos = current_pos.add(conveyor_dir)
@@ -650,9 +662,9 @@ def builderrun(self, ct: Controller):
                 else:
                     print(f"[SPLITTER] Can't build yet — retrying")
             return
-        return  # Not adjacent to foundry yet, bot should be walking here via normal GREEDY flow
-
-    if (self.axionite_foundary_states == 3):
+        self.target_greedy = self.temp_pos_A_foundary
+        self.mode = "GREEDY"
+        # fall through to HARVEST
         conveyor_dir = cardinal_toward_base(current_pos, self.temp_pos_A_foundary)
         next_pos = current_pos.add(conveyor_dir)
         if next_pos == self.temp_pos_A_foundary:
@@ -740,10 +752,11 @@ def builderrun(self, ct: Controller):
 
         if self.mode == "BACKTRACK":
             if ct.get_action_cooldown() == 0:
-                try_build_conveyor(self, ct, current_pos, self.ourcoord)
-                print(f"[BACKTRACK] Done — switching to GREEDY toward base")
+                goal = self.splitter_foundry_pos if self.axionite_foundary_states == 5 else self.ourcoord
+                try_build_conveyor(self, ct, current_pos, goal)
+                print(f"[BACKTRACK] Done — switching to GREEDY toward {goal}")
                 self.mode = "GREEDY"
-                self.target_greedy = self.ourcoord
+                self.target_greedy = goal
             else:
                 print(f"[BACKTRACK] Waiting — action cooldown {ct.get_action_cooldown()}")
             return

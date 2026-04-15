@@ -38,6 +38,9 @@ class Player:
         self.bug_start_dist = 999999
         self.bug_dir = None
         self.bug_side = 1  # +1 = right-hand, -1 = left-hand
+        self.turn_counter = 0
+        self.axionite_marker_spawned = False
+        self.axioniter_spawned = False
         # BUILDER BOT MEMORY
         self.titaniumconveyor = None
         self.scanningmode = "bridge"
@@ -56,7 +59,7 @@ class Player:
         self.wall_jump_landing = None
         self.wall_jump_active = False
         self.core_tiles = []
-        self.axionite_foundary_states = 0
+        self.axionite_foundary_states = 6
         self.temp_pos_A_foundary = None
         self.hook_offset = 0
         self.sweep_dir = 0
@@ -103,6 +106,15 @@ class Player:
                 
             
             if self.bot_state == "HARVEST":
+                marker_check = ct.get_nearby_entities()
+                for id_ in marker_check:
+                    if (ct.get_entity_type(id_) == EntityType.MARKER and ct.get_team(id_) == ct.get_team() and ct.get_marker_value(id_) == 67):
+                        marker_pos = ct.get_position(id_)
+                        print(f"[MARKER] Found marker at {marker_pos} — starting axionite foundry sequence")
+                        self.axionite_foundary_states = 0
+                        if ct.can_destroy(marker_pos):
+                            ct.destroy(marker_pos)
+                            break
                 builderrun(self, ct)
             elif self.bot_state == "ATTACK":
                 builderrun(self, ct)
