@@ -56,7 +56,7 @@ def is_wall_tile(ct: Controller, pos: Position):
     return env == Environment.WALL
 
 
-def try_build_conveyor(ct: Controller, tile_pos: Position, base_pos: Position):
+def try_build_conveyor(self, ct: Controller, tile_pos: Position, base_pos: Position):
     if ct.get_action_cooldown() != 0:
         print(f"  [try_build_conveyor] Skipped — action cooldown {ct.get_action_cooldown()}")
         return False
@@ -81,6 +81,11 @@ def try_build_conveyor(ct: Controller, tile_pos: Position, base_pos: Position):
     direction = cardinal_toward_base(tile_pos, base_pos)
     # if ct.get_entity_type(ct.get_tile_building_id(tile_pos.add(direction))) == EntityType.MARKER:
     #     direction = rotate(direction, 2)
+    if ct.get_tile_env(tile_pos.add(direction)) == Environment.ORE_TITANIUM:
+        self.mode = "BACKTRACK"
+        self.target_greedy = self.ourcoord
+        return True
+
     if ct.can_build_conveyor(tile_pos, direction):
         ct.build_conveyor(tile_pos, direction)
         print(f"  [try_build_conveyor] Built at {tile_pos} → {direction}")
@@ -346,7 +351,7 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
                         blocked_by_bot = True
                         break
             if blocked_by_bot:
-                print(f"[BUG] Blocked by friendly bot at {test_pos} — switching to ROOMBA")
+                print(f"[BUG] Blocked by friendly bot at {test_pos} — waiting")
                 return True
         print(f"[BUG] Can't move {test_dir} — rotating to {rotate(test_dir, 1)}")
         test_dir = rotate(test_dir, 1)
@@ -388,8 +393,11 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                     return True
                 else:
                     print(f"[GREEDY | BACKTRACK] Can't fire at enemy building on current tile {current_pos} — cooldown {ct.get_action_cooldown()}")
+            elif (goal_pos != self.ourcoord):
+                try_build_road(ct, cardinal_toward_base(current_pos, goal_pos))
             else:
-                built_conveyor = try_build_conveyor(ct, next_pos, self.ourcoord)
+                print("[GREEDY | BACKTRACK] At base — no need to build roads")
+                built_conveyor = try_build_conveyor(self, ct, next_pos, goal_pos)
 
         if built_conveyor and ct.can_move(conveyor_dir):
             ct.move(conveyor_dir)
@@ -398,7 +406,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             if(ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) != self.our_team):
                 if (ct.can_move(conveyor_dir)):
                     ct.move(conveyor_dir)
-            elif(ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
+            elif((ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR or ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.BRIDGE) and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
                 self.target_greedy = None
                 self.mode = "ROOMBA"
                 return True
@@ -589,7 +597,7 @@ def builderrun(self, ct: Controller):
             return
 
         if ct.get_action_cooldown() == 0:
-            built_conveyor = try_build_conveyor(ct, next_pos, self.splitter_foundry_pos)
+            built_conveyor = try_build_conveyor(self, ct, next_pos, self.splitter_foundry_pos)
             if built_conveyor and ct.can_move(conveyor_dir):
                 ct.move(conveyor_dir)
                 print(f"[STATE5] Moving {conveyor_dir} toward splitter")
@@ -728,7 +736,7 @@ def builderrun(self, ct: Controller):
 
         if self.mode == "BACKTRACK":
             if ct.get_action_cooldown() == 0:
-                try_build_conveyor(ct, current_pos, self.ourcoord)
+                try_build_conveyor(self, ct, current_pos, self.ourcoord)
                 print(f"[BACKTRACK] Done — switching to GREEDY toward base")
                 self.mode = "GREEDY"
                 self.target_greedy = self.ourcoord
