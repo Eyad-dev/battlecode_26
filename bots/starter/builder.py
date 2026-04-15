@@ -355,7 +355,7 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
                         blocked_by_bot = True
                         break
             if blocked_by_bot:
-                print(f"[BUG] Blocked by friendly bot at {test_pos} — switching to ROOMBA")
+                print(f"[BUG] Blocked by friendly bot at {test_pos} — waiting")
                 return True
         print(f"[BUG] Can't move {test_dir} — rotating to {rotate(test_dir, 1)}")
         test_dir = rotate(test_dir, 1)
