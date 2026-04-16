@@ -25,6 +25,7 @@ class Player:
         self.chocked=False
         self.chockerstate= None
         self.nextchoke=None
+        self.findstatemachine= None
         self.enemycoord= None
         self.ourcoord= None
         self.localorepos= None
@@ -47,6 +48,8 @@ class Player:
         self.turn_counter = 0
         self.axionite_marker_spawned = False
         self.axioniter_spawned = False
+        self.barriertile=False
+        self.barrierenemy=False
         self.healers_spawned = 0
         # BUILDER BOT MEMORY
         self.titaniumconveyor = None
