@@ -180,6 +180,7 @@ def reach_enemy_core(self, ct: Controller):
         return
     else:
         self.attack = "FIND"
+        self.chockerstate= "STARTER"
         print("reached enemy core, switching to find mode")
         return
 
@@ -331,7 +332,7 @@ def place_sentinels(self, ct: Controller):
 
 
 def snipe_the_enemy(self, ct):
-    if self.enemycoord== None:
+    if self.enemycoord== None or self.chocked== False:
         return
     print("in snipe")
     if self.attack == None:
@@ -367,34 +368,151 @@ def snipe_the_enemy(self, ct):
         place_sentinels(self,ct)
 
 
+def calculatebarrierlocs(self, ct: Controller):
+    if self.barrierlocs :
+        return
+    for dx in range(-2, 3):
+        for dy in range(-2, 3):
+            if abs(dx) == 2 or abs(dy) == 2:
+                loc = Position(self.enemycoord.x + dx, self.enemycoord.y + dy)
+                width = ct.get_map_width()
+                height = ct.get_map_height()
 
+                if 0 <= loc.x < width and 0 <= loc.y < height:
+                    self.barrierlocs.add(loc)
+
+    print ("calculated barrier locs:", self.barrierlocs)
+    self.nextchoke=self.barrierlocs.pop()            
+    self.chockerstate= "MOVE"
     
-# def reach_enemy_ores(self, ct: Controller):
-#     if self.enemyore is None:
-#         return
-#     currentpos = ct.get_position()
-#     if not ct.is_in_vision(self.enemyore):
-#         print("moving to enemy ore")
-#         self.mode = "GREEDY"
-#         movemode(self, ct, currentpos, self.enemyore)
-#         return
+def movetotarget(self,ct: Controller):
+    if self.nextchoke in ct.get_nearby_tiles() and ct.get_tile_builder_bot_id(self.nextchoke) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextchoke))== self.our_team and ct.get_id()!= ct.get_tile_builder_bot_id(self.nextchoke):
+        print("friendly bot is blocking barrier position, finding new loc")
+        if self.barrierlocs is not None and self.nextchoke in self.barrierlocs:
+            print("new loc")
+            self.barrierlocs.discard(self.nextchoke)
+            self.nextchoke= self.barrierlocs.pop()
+            self.attack == "MOVE"
+            return
+        else:
 
-#     id = ct.get_tile_building_id(self.enemyore)
-#     harvester_checker = ct.get_entity_type(id)
+            return
+    elif self.nextchoke in ct.get_nearby_tiles() and ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.BARRIER:
+        self.barrierlocs.discard(self.nextchoke)
+        self.nextchoke= self.barrierlocs.pop()
+    elif self.nextchoke in ct.get_nearby_tiles() and (ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.MARKER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.HARVESTER) :
+        self.barrierlocs.discard(self.nextchoke)
+        self.nextchoke= self.barrierlocs.pop()   
 
-#     if harvester_checker == EntityType.HARVESTER:
-#         print("harvester exists")
-#         self.attack = "FIND"
-#         return
-#     distance_to_ore_sq = (currentpos.x - self.enemyore.x)**2 + (currentpos.y - self.enemyore.y)**2
-#     if distance_to_ore_sq <= 2:
-#         if ct.can_build_harvester(self.enemyore) and ct.get_action_cooldown() == 0:
-#             ct.build_harvester(self.enemyore)
-#             self.attack = "FIND"
-#             return
-#         elif ct.get_action_cooldown() > 0:
-#             return 
-#     self.mode = "GREEDY"
-#     movemode(self, ct, currentpos, self.enemyore)
+    if ct.get_position()!=self.nextchoke:
+        movemode(self, ct, ct.get_position(), self.nextchoke )
+        return
+    else:
+        self.chockerstate= "BREAK"
+
+def breaktheirlegs(self,ct:Controller):
+    id = ct.get_tile_building_id(ct.get_position())
+    if ct.get_entity_type(id) == EntityType.BRIDGE or ct.get_entity_type(id) == EntityType.CONVEYOR or (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))!= self.our_team):
+        if ct.can_fire(ct.get_position()):
+            print("banging at", ct.get_position())
+            ct.fire(ct.get_position())
+        return
+    elif (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))== self.our_team):
+        if ct.can_destroy(ct.get_position()):
+            print("destroying road at", ct.get_position())
+            ct.destroy(ct.get_position())
+    else:
+        print("tile broken, scooting into position to choke")
+        self.chockerstate= "SCOOT"
+
+def scoot(self,ct:Controller):
+
+    # if ct.get_tile_builder_bot_id(self.nextchoke) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextchoke))== self.our_team:
+    #         print("friendly bot is blocking barrier position, finding new position choke")
+    #         if self.barrierlocs is not None and self.nextchoke in self.barrierlocs:
+    #             self.barrierlocs.discard(self.nextchoke)
+    #             self.nextchoke= self.barrierlocs.pop()
+    #             self.attack == "MOVE"
+    #         return
+
+    if ct.get_position() == self.nextchoke:
+        print("at choke pos, will scoot")
+
+        id = ct.get_tile_building_id(ct.get_position())
+        if ct.get_entity_type(id) == EntityType.ROAD:
+            print("there is a tile to break, switching to damage mode")
+            self.chockerstate= "BREAK"
+            return
+        
+        directions = [
+            Direction.NORTH,
+            Direction.SOUTH,
+            Direction.EAST,
+            Direction.WEST,
+            Direction.NORTHEAST,
+            Direction.NORTHWEST,
+            Direction.SOUTHEAST,
+            Direction.SOUTHWEST,
+        ]
+
+        for direction in directions:
+            if ct.can_move(direction):
+                self.chockerstate = "CHOKE"
+                ct.move(direction)
+                return
+    else:
+        self.chockerstate== "MOVE"
+        return
+
+def barrierboba(self, ct:Controller):
+    id = ct.get_tile_building_id(self.nextchoke)
+    if (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))== self.our_team):
+        if ct.can_destroy(self.nextchoke):
+            print("destroying road at", self.nextchoke)
+            ct.destroy(self.nextchoke)
+    if ct.can_build_barrier(self.nextchoke):
+        ct.build_barrier(self.nextchoke)
+        self.barrierlocs.discard(self.nextchoke)
+        if self.barrierlocs:
+            self.nextchoke= self.barrierlocs.pop()
+            self.chockerstate= "MOVE"
+        else:
+            print("choking done :)")
+            self.chocked= True
+
+
+
+def choke_the_enemy(self, ct:Controller):
+    if self.chocked is True:
+        return
+    if self.chockerstate == None:
+        print("reach core in choke")
+        reach_enemy_core(self, ct)
+        return
+    if self.chockerstate== "STARTER":
+        print("calculating barrier locs")
+        calculatebarrierlocs(self,ct)
+        return
+    if self.chockerstate== "MOVE":
+        print("move to barrier loc", self.nextchoke)
+        if self.nextchoke is None and not self.barrierlocs:
+            print("choking done :)")
+            self.chocked= True
+            return
+        movetotarget(self,ct)
+        return
+    if self.chockerstate== "BREAK":
+        print("break the floor im on")
+        breaktheirlegs(self,ct)
+        return
+    if self.chockerstate== "SCOOT":
+        print("scooooooting")
+        scoot(self,ct)
+        return
+    if self.chockerstate== "CHOKE":
+        print("choking the core with barrier rn")
+        barrierboba(self, ct)
+        return
+    
 
 
