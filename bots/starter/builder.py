@@ -335,25 +335,6 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
             self.wall_follow_direction = rotate(new_dir, self.hook_offset)
             print(f"[BUG] Updated wall follow direction to {self.wall_follow_direction} for next turn")
             return True
-        else:
-            # Check if blocked by a friendly bot
-            nearby_entities = ct.get_nearby_entities()
-            blocked_by_bot = False
-            for entity_id in nearby_entities:
-                if entity_id == ct.get_id():
-                    continue
-                if ct.get_position(entity_id) == test_pos:
-                    entity_type = ct.get_entity_type(entity_id)
-                    if entity_type in [EntityType.BUILDER_BOT, EntityType.SENTINEL]:
-                        blocked_by_bot = True
-                        break
-            if blocked_by_bot:
-                print(f"[BUG] Blocked by friendly bot at {test_pos} — ROOMBA")
-                self.mode = "ROOMBA"
-                return True
-        print(f"[BUG] Can't move {test_dir} — rotating to {rotate(test_dir, 1)}")
-        test_dir = rotate(test_dir, 1)
-        
     print(f"[BUG] Completely trapped — waiting")
     return True
 
@@ -498,18 +479,6 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
 
     # TRAP DETECTION
     if best_valid_dist > current_dist_sq and best_valid_dist:
-        nearby_entities = ct.get_nearby_entities()
-        blocked_by_bot = False
-        for entity_id in nearby_entities:
-            if ct.get_position(entity_id) == best_pos:
-                entity_type = ct.get_entity_type(entity_id)
-                if entity_type in [EntityType.BUILDER_BOT, EntityType.SENTINEL]:
-                    blocked_by_bot = True
-                    break
-        
-        if blocked_by_bot:
-            print(f"[GREEDY] Blocked by friendly bot at {best_pos} — Waiting")
-            return True
 
         print(f"[GREEDY] Trapped — best dist² {best_valid_dist} > current {current_dist_sq} — switching to BUG")
         self.mode = "BUG"
