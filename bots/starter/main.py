@@ -1,7 +1,7 @@
 import random
 
 from cambc import Controller, Direction, EntityType, GameConstants, Environment, Position
-from snipe import find_the_enemy, snipe_the_enemy
+from snipe import find_the_enemy, snipe_the_enemy, choke_the_enemy
 from scanning import *
 from core import corerrun
 from builder import *
@@ -23,7 +23,7 @@ class Player:
         self.mirroredpoints= None
         self.barrierlocs=set()
         self.chocked=False
-        self.chockerstate= "STARTER"
+        self.chockerstate= None
         self.nextchoke=None
         self.enemycoord= None
         self.ourcoord= None
@@ -118,6 +118,7 @@ class Player:
             elif self.bot_state == "ATTACK":
                 print(f"[BUILDER RUN] ATTACK mode")
                 find_the_enemy(self, ct)
+                choke_the_enemy(self,ct)
                 snipe_the_enemy(self, ct)
                 print("fight sound effects :)")
             elif self.bot_state == "HEALER":
