@@ -579,7 +579,9 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
 
 def builderrun(self, ct: Controller):
     current_pos = ct.get_position()
+    
     print(f"========== [BUILDER RUN] Pos={current_pos} | Mode={self.mode} | State={self.bot_state} ==========")
+    print(f"self.axiitonite_foundary_states: {self.axionite_foundary_states}")
     #Checking for axioniter state with the marker
 
     # -------------------------------------------------------
@@ -726,7 +728,7 @@ def builderrun(self, ct: Controller):
             print(f"[FOUNDRY] Waiting — can't build foundry at {self.temp_pos_A_foundary} yet")
     # -------------------------------------------------------
 
-    if self.bot_state == "HARVEST":
+    if self.bot_state == "HARVEST" or self.bot_state == "AXIONITER":
 
         if handle_vision_and_harvesting(self, ct, current_pos):
             print(f"[BUILDER RUN] Vision/harvesting consumed the turn")

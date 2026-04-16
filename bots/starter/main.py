@@ -47,6 +47,7 @@ class Player:
         self.turn_counter = 0
         self.axionite_marker_spawned = False
         self.axioniter_spawned = False
+        self.healers_spawned = 0
         # BUILDER BOT MEMORY
         self.titaniumconveyor = None
         self.scanningmode = "bridge"
@@ -105,7 +106,8 @@ class Player:
                             self.mode = "GREEDY"
                         elif role_id == 3: # HEALER
                             self.bot_state = "HEALER"
-                        elif role_id == 67:
+                        elif role_id == 4:
+                            self.axionite_foundary_states = 0
                             self.bot_state = "AXIONITER"
                         
                         print(self.bot_state)
@@ -125,8 +127,8 @@ class Player:
                 print(f"[BUILDER RUN] HEALER mode")
                 healerrun(self,ct)
             elif self.bot_state == "AXIONITER":
-                print("AXIONITER ON IT AYEE")
-                axioniterrun(self,ct)
+                print(f"[BUILDER RUN] AXIONITER mode")
+                builderrun(self, ct)
 
 
 
