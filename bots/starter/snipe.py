@@ -140,7 +140,7 @@ def find_the_enemy(self, ct: Controller):
     editedtiles= set(tiles)
     for tile in tiles:
         if ct.get_tile_env(tile)== Environment.EMPTY:
-            editedtiles.discard(tile)
+            editedtiles.discard(tile) 
     
     tiles = list(editedtiles) 
     symmetry, farpoints = check_symmetry(self, ct, tiles)
@@ -152,13 +152,16 @@ def find_the_enemy(self, ct: Controller):
         if self.localorepos!= None:
             self.enemyore= mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
         print(self.enemycoord)
-    elif farpoints is not None:
+    elif farpoints is not None and self.mirroredpoints is not None:
         if self.current_target is None:
             self.mirroredpoints = farpoints
             orient(self, ct)
         else:
             # keep going toward locked target
             movemode(self, ct, ct.get_position(), self.current_target)
+    elif self.mirroredpoints is None:
+        self.mode = "ROOMBA"
+        movemode(self,ct, ct.get_position())
 
 
 def reach_enemy_core(self, ct: Controller):
@@ -479,17 +482,31 @@ def barrierboba(self, ct:Controller):
         else:
             print("choking done :)")
             self.chocked= True
+    elif (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))!= self.our_team):
+        self.chockerstate= "BREAK"
+        movetotarget(self,ct)
+
 
 
 
 def choke_the_enemy(self, ct:Controller):
-    if self.chocked is True:
+    if self.chocked is True or self.enemycoord== None :
         return
     if self.chockerstate == None:
+        tiles = ct.get_nearby_tiles()
+        barriertile=False
+        barrierenemy=False
+        for tile in tiles:
+            if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.BARRIER:
+                barriertile= True
+            if ct.  get_entity_type(ct.get_tile_building_id(tile)) == EntityType.CORE and self.our_team!= ct.get_team(ct.get_tile_building_id(tile)):
+                barrierenemy= True
+        if barrierenemy and barriertile:
+            self.chockerstate= "STARTER"
         print("reach core in choke")
         reach_enemy_core(self, ct)
         return
-    if self.chockerstate== "STARTER":
+    if self.chockerstate== "STARTER":  
         print("calculating barrier locs")
         calculatebarrierlocs(self,ct)
         return
