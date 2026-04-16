@@ -24,10 +24,10 @@ def corerrun(self, ct: Controller):
     #             self.num_spawned += 1
     #             break
    
-    if self.num_spawned < 2:
-            if self.num_spawned <= 1:
+    if self.num_spawned < 4:
+            if self.num_spawned <=1 :
                  role_id = 4 # AXIONITER
-            elif self.num_spawned <= 2:
+            elif self.num_spawned <= 0:
                  role_id = 1 # HARVESTER               
             else:
                  role_id = 2 # ATTACKER
@@ -37,6 +37,9 @@ def corerrun(self, ct: Controller):
                 self.num_spawned += 1
     
             writemarker(self,ct,role_id)
+    elif self.num_spawned == 2:
+         role_id = 1
+         writemarker(self,ct,role_id)
     
     if (ct.get_hp() < ct.get_max_hp() and self.healers_spawned < 5):
         role_id = 3 # HEALER
