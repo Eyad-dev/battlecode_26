@@ -152,11 +152,15 @@ def find_the_enemy(self, ct: Controller):
         if self.localorepos!= None:
             self.enemyore= mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
         print(self.enemycoord)
-    elif farpoints is not None and self.mirroredpoints is not None:
+    elif farpoints is not None :
         if self.current_target is None:
             self.mirroredpoints = farpoints
+            if self.mode == "ROOMBA":
+                self.mode = "GREEDY"
             orient(self, ct)
         else:
+            if self.mode == "ROOMBA":
+                self.mode = "GREEDY"
             # keep going toward locked target
             movemode(self, ct, ct.get_position(), self.current_target)
     elif self.mirroredpoints is None:
@@ -403,7 +407,7 @@ def movetotarget(self,ct: Controller):
     elif self.nextchoke in ct.get_nearby_tiles() and ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.BARRIER:
         self.barrierlocs.discard(self.nextchoke)
         self.nextchoke= self.barrierlocs.pop()
-    elif self.nextchoke in ct.get_nearby_tiles() and (ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.MARKER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.HARVESTER) :
+    elif self.nextchoke in ct.get_nearby_tiles() and (ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.MARKER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.HARVESTER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.FOUNDRY) :
         self.barrierlocs.discard(self.nextchoke)
         self.nextchoke= self.barrierlocs.pop()   
 
@@ -415,7 +419,7 @@ def movetotarget(self,ct: Controller):
 
 def breaktheirlegs(self,ct:Controller):
     id = ct.get_tile_building_id(ct.get_position())
-    if ct.get_entity_type(id) == EntityType.BRIDGE or ct.get_entity_type(id) == EntityType.CONVEYOR or (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))!= self.our_team):
+    if ct.get_entity_type(id) == EntityType.BRIDGE or ct.get_entity_type(id) == EntityType.CONVEYOR or ct.get_entity_type(id) == EntityType.SPLITTER or(ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))!= self.our_team):
         if ct.can_fire(ct.get_position()):
             print("banging at", ct.get_position())
             ct.fire(ct.get_position())
@@ -470,6 +474,7 @@ def scoot(self,ct:Controller):
 def barrierboba(self, ct:Controller):
     id = ct.get_tile_building_id(self.nextchoke)
     if (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(self.nextchoke))== self.our_team):
+        print("destroying friendly road")
         if ct.can_destroy(self.nextchoke):
             print("destroying road at", self.nextchoke)
             ct.destroy(self.nextchoke)
@@ -487,6 +492,12 @@ def barrierboba(self, ct:Controller):
     elif (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(self.nextchoke))!= self.our_team):
         self.chockerstate= "BREAK"
         movetotarget(self,ct)
+    elif ct.get_entity_type(id) == EntityType.BARRIER:
+        print("barrier exists, next barrier incoming")
+        self.barrierlocs.discard(self.nextchoke)
+        if self.barrierlocs:
+            self.nextchoke= self.barrierlocs.pop()
+            self.chockerstate= "MOVE"
 
 
 
