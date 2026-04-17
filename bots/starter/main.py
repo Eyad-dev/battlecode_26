@@ -97,21 +97,23 @@ class Player:
                         core_pos = ct.get_position(entity_id)
                         self.ourcoord = core_pos
                         self.core_tiles = [core_pos.add(Direction.NORTH), core_pos.add(Direction.SOUTH), core_pos.add(Direction.EAST), core_pos.add(Direction.WEST), core_pos.add(Direction.NORTHEAST), core_pos.add(Direction.NORTHWEST), core_pos.add(Direction.SOUTHEAST), core_pos.add(Direction.SOUTHWEST)]
-                    if ct.get_entity_type(entity_id) == EntityType.MARKER:
 
                         self.our_team = ct.get_team(entity_id)
-                        role_id = ct.get_marker_value(entity_id)
 
-                        if role_id == 1:
-                            self.bot_state = "HARVEST"
-                        elif role_id == 2:
+                        if ct.get_position().direction_to(self.ourcoord) == Direction.NORTHWEST:
                             self.bot_state = "ATTACK"
                             self.mode = "GREEDY"
-                        elif role_id == 3: # HEALER
-                            self.bot_state = "HEALER"
-                        elif role_id == 4:
+                        elif ct.get_position().direction_to(self.ourcoord) == Direction.SOUTHEAST:
+                            self.bot_state = "HARVEST"
+                        elif ct.get_position().direction_to(self.ourcoord) == Direction.SOUTHWEST:
                             self.axionite_foundary_states = 0
                             self.bot_state = "AXIONITER"
+                        elif ct.get_position().direction_to(self.ourcoord) == Direction.NORTH \
+                        or ct.get_position().direction_to(self.ourcoord) == Direction.EAST \
+                        or ct.get_position().direction_to(self.ourcoord) == Direction.SOUTH \
+                        or ct.get_position().direction_to(self.ourcoord) == Direction.WEST: 
+                            self.bot_state = "HEALER"
+
                         
                         print(self.bot_state)
                         #break from searching any other entity, we got our role
