@@ -277,9 +277,9 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
 
 
 def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
-    if self.loopies :
-        print("loopies")
-
+    if self.loopies:
+        if self.bot_state == "HARVEST":
+            self.mode = "GREEDY" 
 
     current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     print(f"[BUG] At {current_pos} | Goal {goal_pos} | dist²={current_dist_sq} | hit_dist={self.hit_distance}")
