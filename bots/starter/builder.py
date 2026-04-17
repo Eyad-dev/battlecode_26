@@ -3,6 +3,7 @@ from cambc import Controller, Direction, GameConstants, Position
 from scanning import *
 from snipe import *
 from healer import *
+from helper import *
 
 BRIDGE_TILES = [
     (dx, dy)
@@ -276,6 +277,10 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
 
 
 def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
+    if self.loopies :
+        print("loopies")
+
+
     current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     print(f"[BUG] At {current_pos} | Goal {goal_pos} | dist²={current_dist_sq} | hit_dist={self.hit_distance}")
 
@@ -316,6 +321,9 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
             print()
         if ct.can_move(test_dir):
             ct.move(test_dir)
+            currentpos= ct.get_position()
+            self.path.append(currentpos.add(test_dir))
+            self.loopies= loopyloops(self.path)
             print(f"[BUG] Moved {test_dir} to {test_pos}")
             new_dir = test_dir
 
@@ -357,6 +365,9 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                 if ct.can_move(d):
                     self.temp_pos_A_foundary = current_pos
                     ct.move(d)
+                    currentpos= ct.get_position()
+                    self.path.append(currentpos.add(d))
+                    self.loopies= loopyloops(self.path)
                     break
             if ct.can_destroy(splitter_pos):
                 ct.destroy(splitter_pos)
@@ -382,12 +393,18 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
 
         if built_conveyor and ct.can_move(conveyor_dir):
             ct.move(conveyor_dir)
+            currentpos= ct.get_position()
+            self.path.append(currentpos.add(conveyor_dir))
+            self.loopies= loopyloops(self.path)
             print(f"[GREEDY | BACKTRACK] Moved {conveyor_dir} onto conveyor")
         else:
             print(f"[DEBUG] team_check={ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir)))} | our_team={self.our_team} | entity={ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir)))} | axionite_state={self.axionite_foundary_states}")
             if(ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) != self.our_team):
                 if (ct.can_move(conveyor_dir)):
                     ct.move(conveyor_dir)
+                    currentpos= ct.get_position()
+                    self.path.append(currentpos.add(conveyor_dir))
+                    self.loopies= loopyloops(self.path)
             elif (self.axionite_foundary_states == 6 or self.axionite_foundary_states == 0) and (((ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR or ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.BRIDGE) and (ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team)) or next_pos in self.core_tiles):
                 self.target_greedy = None
                 self.mode = "ROOMBA"
@@ -395,6 +412,9 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             elif self.axionite_foundary_states < 6 and (ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
                 if ct.can_move(conveyor_dir):
                     ct.move(conveyor_dir)
+                    currentpos= ct.get_position()
+                    self.path.append(currentpos.add(conveyor_dir))
+                    self.loopies= loopyloops(self.path)
                     return True
             elif (goal_pos == self.ourcoord and next_pos == self.ourcoord or self.axionite_foundary_states == 0):
                 if (next_pos in self.core_tiles):
@@ -493,6 +513,9 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
         print(f"[GREEDY] Moving {best_dir} to {best_pos}")
         if best_dir and ct.can_move(best_dir):
             ct.move(best_dir)
+            currentpos= ct.get_position()
+            self.path.append(currentpos.add(best_dir))
+            self.loopies= loopyloops(self.path)
         return True
 
 
@@ -529,6 +552,9 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
     if is_safe and ct.can_move(self.heading):
         print(f"[ROOMBA] Moving {self.heading} to {move_pos}")
         ct.move(self.heading)
+        currentpos= ct.get_position()
+        self.path.append(currentpos.add(self.heading))
+        self.loopies= loopyloops(self.path)
     else:
         valid_directions = list(DIRECTIONS)
         random.shuffle(valid_directions)
@@ -547,6 +573,10 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
                     ct.build_road(pos)
                 if ct.can_move(self.heading):
                     ct.move(self.heading)
+                    currentpos= ct.get_position()
+                    self.path.append(currentpos.add(self.heading))
+                    self.loopies= loopyloops(self.path)
+
                 print(f"[ROOMBA] New heading {self.heading} — moving to {pos}")
                 found = True
                 break
@@ -599,6 +629,9 @@ def builderrun(self, ct: Controller):
             built_conveyor = try_build_conveyor(self, ct, next_pos, self.splitter_foundry_pos)
             if built_conveyor and ct.can_move(conveyor_dir):
                 ct.move(conveyor_dir)
+                currentpos= ct.get_position()
+                self.path.append(currentpos.add(conveyor_dir))
+                self.loopies= loopyloops(self.path)
                 print(f"[STATE5] Moving {conveyor_dir} toward splitter")
             else:
                 print(f"[STATE5] Can't move {conveyor_dir} — blocked")
