@@ -31,12 +31,13 @@ def corerrun(self, ct: Controller):
          spawnbot(ct, core_pos.add(Direction.SOUTHEAST))
          print("ATTACKER")
 
-    if (ct.get_hp() < ct.get_max_hp()):
-        role_id = 3 # HEALER
+    if (ct.get_hp() < ct.get_max_hp()): # HEALER
         for d in HEALER_DIRS:
             test_pos = ct.get_position().add(d)
-            spawnbot(ct, test_pos)
-            break
+            if ct.can_spawn(test_pos):
+                 ct.spawn_builder(test_pos)
+                 break
+
 
 def spawnbot(ct, pos):
     if ct.can_spawn(pos):
