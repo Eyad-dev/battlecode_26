@@ -237,17 +237,17 @@ def move_to_enemy_bridge(self, ct:Controller, bridge:Position):
         if self.bridges is not None and self.nextsentinelpos in self.bridges:
             print("new bridge")
             self.bridges.discard(self.nextsentinelpos)
-            self.attack == "FIND"
+            self.attack = "FIND"
             return
         if self.titaniumconveyor is not None and self.nextsentinelpos in self.titaniumconveyor:
             print("new conveyor")
-            self.attack == "FIND"
+            self.attack = "FIND"
             self.titaniumconveyor.discard(self.nextsentinelpos)
             return
         else:
             self.mode="ROOMBA"
             movemode(self,ct, ct.get_position())
-            self.attack== "FIND"
+            self.attack= "FIND"
     if ct.get_position()!= bridge:
         movemode(self, ct, ct.get_position(), bridge )
         return
@@ -395,7 +395,7 @@ def movetotarget(self,ct: Controller):
             print("new loc")
             self.barrierlocs.discard(self.nextchoke)
             self.nextchoke= self.barrierlocs.pop()
-            self.attack == "MOVE"
+            self.attack = "MOVE"
             return
         else:
 
@@ -464,15 +464,16 @@ def scoot(self,ct:Controller):
                 ct.move(direction)
                 return
     else:
-        self.chockerstate== "MOVE"
+        self.chockerstate= "MOVE"
         return
 
 def barrierboba(self, ct:Controller):
     id = ct.get_tile_building_id(self.nextchoke)
-    if (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))== self.our_team):
+    if (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(self.nextchoke))== self.our_team):
         if ct.can_destroy(self.nextchoke):
             print("destroying road at", self.nextchoke)
             ct.destroy(self.nextchoke)
+            return
     if ct.can_build_barrier(self.nextchoke):
         ct.build_barrier(self.nextchoke)
         self.barrierlocs.discard(self.nextchoke)
@@ -481,8 +482,9 @@ def barrierboba(self, ct:Controller):
             self.chockerstate= "MOVE"
         else:
             print("choking done :)")
+            self.bot_state = "ATTACK"
             self.chocked= True
-    elif (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(ct.get_position()))!= self.our_team):
+    elif (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(self.nextchoke))!= self.our_team):
         self.chockerstate= "BREAK"
         movetotarget(self,ct)
 
