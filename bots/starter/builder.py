@@ -83,10 +83,11 @@ def try_build_conveyor(self, ct: Controller, tile_pos: Position, base_pos: Posit
     direction = cardinal_toward_base(tile_pos, base_pos)
     # if ct.get_entity_type(ct.get_tile_building_id(tile_pos.add(direction))) == EntityType.MARKER:
     #     direction = rotate(direction, 2)
-    if ct.get_tile_env(tile_pos.add(direction)) == Environment.ORE_TITANIUM:
-        self.mode = "BACKTRACK"
-        self.target_greedy = self.ourcoord
-        return True
+    #--------------------------------------------------------------------------------------------------
+    # if ct.get_tile_env(tile_pos.add(direction)) == Environment.ORE_TITANIUM:
+    #     self.mode = "BACKTRACK"
+    #     self.target_greedy = self.ourcoord
+    #     return True
 
     if ct.can_build_conveyor(tile_pos, direction):
         ct.build_conveyor(tile_pos, direction)
@@ -335,6 +336,7 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
             self.wall_follow_direction = rotate(new_dir, self.hook_offset)
             print(f"[BUG] Updated wall follow direction to {self.wall_follow_direction} for next turn")
             return True
+        test_dir = rotate(test_dir, 1)
     print(f"[BUG] Completely trapped — waiting")
     return True
 
@@ -517,6 +519,9 @@ def run_roomba_mode(self, ct: Controller, current_pos: Position):
         if check_for_marker is not None and ct.get_entity_type(check_for_marker) == EntityType.MARKER:
             print(f"[ROOMBA] Marker at {move_pos} — picking new direction")
             is_safe = False
+        
+        if ct.get_tile_env(move_pos) == Environment.ORE_TITANIUM or ct.get_tile_env(move_pos) == Environment.ORE_AXIONITE:
+            is_safe = False 
 
     if is_safe and ct.can_build_road(move_pos):
         ct.build_road(move_pos)
@@ -647,6 +652,7 @@ def builderrun(self, ct: Controller):
                 existing = ct.get_tile_building_id(splitter_pos)
                 if existing is not None and ct.can_destroy(splitter_pos):
                     ct.destroy(splitter_pos)
+                print(f"lolamami: {splitter_pos}")
                 if ct.can_build_splitter(splitter_pos, input_dir):
                     ct.build_splitter(splitter_pos, input_dir)
                     print(f"[SPLITTER] Built at {splitter_pos} with input from {input_dir}")
