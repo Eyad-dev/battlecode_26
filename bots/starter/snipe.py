@@ -386,7 +386,7 @@ def calculatebarrierlocs(self, ct: Controller):
                 height = ct.get_map_height()
 
                 if 0 <= loc.x < width and 0 <= loc.y < height:
-                    self.barrierlocs.add(loc)
+                    self.barrierlocs.append(loc)
 
     print ("calculated barrier locs:", self.barrierlocs)
     self.nextchoke=self.barrierlocs.pop()            
@@ -397,19 +397,34 @@ def movetotarget(self,ct: Controller):
         print("friendly bot is blocking barrier position, finding new loc")
         if self.barrierlocs is not None and self.nextchoke in self.barrierlocs:
             print("new loc")
-            self.barrierlocs.discard(self.nextchoke)
-            self.nextchoke= self.barrierlocs.pop()
-            self.attack = "MOVE"
+            if self.nextchoke in self.barrierlocs:
+                self.barrierlocs.remove(self.nextchoke)
+            if self.barrierlocs:
+                self.nextchoke= self.barrierlocs.pop()
+                self.attack = "MOVE"
+            else: 
+                self.chocked= True
+                return
             return
         else:
 
             return
     elif self.nextchoke in ct.get_nearby_tiles() and ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.BARRIER:
-        self.barrierlocs.discard(self.nextchoke)
-        self.nextchoke= self.barrierlocs.pop()
+        if self.nextchoke in self.barrierlocs:
+            self.barrierlocs.remove(self.nextchoke)
+            if self.barrierlocs:
+                self.nextchoke= self.barrierlocs.pop()
+            else: 
+                self.chocked= True
+                return
     elif self.nextchoke in ct.get_nearby_tiles() and (ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.MARKER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.HARVESTER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.FOUNDRY) :
-        self.barrierlocs.discard(self.nextchoke)
-        self.nextchoke= self.barrierlocs.pop()   
+        if self.nextchoke in self.barrierlocs:
+            self.barrierlocs.remove(self.nextchoke)
+        if self.barrierlocs:
+            self.nextchoke= self.barrierlocs.pop()
+        else: 
+            self.chocked= True
+            return
 
     if ct.get_position()!=self.nextchoke:
         movemode(self, ct, ct.get_position(), self.nextchoke )
@@ -481,7 +496,8 @@ def barrierboba(self, ct:Controller):
             return
     if ct.can_build_barrier(self.nextchoke):
         ct.build_barrier(self.nextchoke)
-        self.barrierlocs.discard(self.nextchoke)
+        if self.nextchoke in self.barrierlocs:
+            self.barrierlocs.remove(self.nextchoke)
         if self.barrierlocs:
             self.nextchoke= self.barrierlocs.pop()
             self.chockerstate= "MOVE"
@@ -494,7 +510,8 @@ def barrierboba(self, ct:Controller):
         movetotarget(self,ct)
     elif ct.get_entity_type(id) == EntityType.BARRIER:
         print("barrier exists, next barrier incoming")
-        self.barrierlocs.discard(self.nextchoke)
+        if self.nextchoke in self.barrierlocs:
+            self.barrierlocs.remove(self.nextchoke)
         if self.barrierlocs:
             self.nextchoke= self.barrierlocs.pop()
             self.chockerstate= "MOVE"
