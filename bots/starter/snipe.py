@@ -505,11 +505,11 @@ def barrierboba(self, ct:Controller):
             print("choking done :)")
             self.bot_state = "ATTACK"
             self.chocked= True
-    elif (ct.get_entity_type(id) == EntityType.ROAD and ct.get_team(ct.get_tile_building_id(self.nextchoke))!= self.our_team):
+    elif (ct.get_entity_type(id) == EntityType.ROAD) or (ct.get_entity_type(id) ==EntityType.CONVEYOR) or (ct.get_entity_type(id) ==EntityType.SPLITTER):
         self.chockerstate= "BREAK"
         movetotarget(self,ct)
-    elif ct.get_entity_type(id) == EntityType.BARRIER:
-        print("barrier exists, next barrier incoming")
+    elif ct.get_entity_type(id) == EntityType.BARRIER or ct.get_entity_type(id) == EntityType.FOUNDRY:
+        print("barrier or foundry exists, next barrier incoming")
         if self.nextchoke in self.barrierlocs:
             self.barrierlocs.remove(self.nextchoke)
         if self.barrierlocs:

@@ -8,6 +8,7 @@ def wrath(self, ct, pos: Position):
 
 def sentinelrun(self, ct:Controller):
     if self.enemycoord != None:
+        print(f"[SENTINEL] Firing at enemy core at {self.enemycoord}")
         wrath(self, ct, self.enemycoord)
         return
     if self.snipecoord == None and self.snipe:
@@ -20,10 +21,11 @@ def sentinelrun(self, ct:Controller):
 
     
     tiles= ct.get_nearby_tiles()
+    attackable = ct.get_attackable_tiles()
     for tile in tiles:
         id = ct.get_tile_building_id(tile)
         checker = ct.get_entity_type(id)
-        if checker == EntityType.CORE:
+        if checker == EntityType.CORE and tile in attackable:
             self.enemycoord= tile
             wrath(self, ct, self.enemycoord)
             return
