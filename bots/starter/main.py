@@ -8,6 +8,7 @@ from builder import *
 from sentinel import sentinelrun
 from healer import *
 from axioniter import *
+from gunner import *
 
 # non-centre directions
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
@@ -141,3 +142,5 @@ class Player:
 
         elif etype == EntityType.SENTINEL:
             sentinelrun(self,ct)
+        elif etype == EntityType.GUNNER:
+            gunnerrun(self,ct)
