@@ -152,7 +152,7 @@ def find_the_enemy(self, ct: Controller):
         if self.localorepos!= None:
             self.enemyore= mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
         print(self.enemycoord)
-    elif farpoints is not None :
+    elif len(farpoints)>0 :
         if self.current_target is None:
             self.mirroredpoints = farpoints
             if self.mode == "ROOMBA":
