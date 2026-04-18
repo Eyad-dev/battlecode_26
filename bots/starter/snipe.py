@@ -181,10 +181,10 @@ def reach_enemy_core(self, ct: Controller):
         self.turnstaken= 0
         movemode(self, ct, currentpos, self.enemycoord)
         return
-    elif distance_squared(currentpos, self.enemycoord) > 4:
-        print("moving closer to enemy core")
-        movemode(self, ct, currentpos, self.enemycoord)
-        return
+    # elif distance_squared(currentpos, self.enemycoord) > 5:
+    #     print("moving closer to enemy core")
+    #     movemode(self, ct, currentpos, self.enemycoord)
+    #     return
     else:
         self.attack = "FIND"
         self.chockerstate= "STARTER"
@@ -200,7 +200,7 @@ def scan_field_for_bridges(self, ct:Controller):
         if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.BRIDGE and self.our_team!= ct.get_team(ct.get_tile_building_id(tile)):
             bridges.add(tile)
     if len(bridges)>0:
-        self.bridges= bridges 
+        self.bridges= sorted(bridges, key=lambda p: (p.x - self.enemycoord.x)**2 + (p.y - self.enemycoord.y)**2)
         self.attack= "GO"
     # else:
     #     currentpos = ct.get_position()
@@ -227,7 +227,7 @@ def scan_field_for_conveyer_with_titanium(self, ct:Controller):
             break
 
     if len(conveyors)>0:
-        self.titaniumconveyor= conveyors 
+        self.titaniumconveyor= sorted(conveyors, key=lambda p: (p.x - self.enemycoord.x)**2 + (p.y - self.enemycoord.y)**2)
         self.attack= "GO"
     return
 
@@ -378,6 +378,7 @@ def snipe_the_enemy(self, ct):
 def calculatebarrierlocs(self, ct: Controller):
     if self.barrierlocs :
         return
+    barriers= []
     for dx in range(-2, 3):
         for dy in range(-2, 3):
             if abs(dx) == 2 or abs(dy) == 2:
@@ -386,8 +387,8 @@ def calculatebarrierlocs(self, ct: Controller):
                 height = ct.get_map_height()
 
                 if 0 <= loc.x < width and 0 <= loc.y < height:
-                    self.barrierlocs.append(loc)
-
+                    barriers.append(loc)
+    self.barrierlocs= barriers 
     print ("calculated barrier locs:", self.barrierlocs)
     self.nextchoke=self.barrierlocs.pop()            
     self.chockerstate= "MOVE"
@@ -541,11 +542,19 @@ def choke_the_enemy(self, ct:Controller):
         calculatebarrierlocs(self,ct)
         return
     if self.chockerstate== "MOVE":
-        print("move to barrier loc", self.nextchoke)
-        if self.nextchoke is None and not self.barrierlocs:
+        nearby = ct.get_nearby_tiles()
+        if self.nextchoke in nearby:
+            if ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.BARRIER:
+                print("barrier exists")
+                if self.nextchoke in self.barrierlocs:
+                    self.barrierlocs.remove(self.nextchoke)
+                if self.barrierlocs:
+                    self.nextchoke= self.barrierlocs.pop()
+        if  not self.barrierlocs:
             print("choking done :)")
             self.chocked= True
             return
+        print("move to barrier loc", self.nextchoke)
         movetotarget(self,ct)
         return
     if self.chockerstate== "BREAK":
