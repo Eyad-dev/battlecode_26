@@ -9,6 +9,7 @@ from sentinel import sentinelrun
 from healer import *
 from axioniter import *
 from gunner import *
+from bugnav import *
 
 # non-centre directions
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
@@ -18,6 +19,7 @@ class Player:
 
         #TEAM ID (a or b)
         self.our_team = None
+        self.nav= BugNav()
         #CORE MEMROY
         self.num_spawned = 0 # number of builder bots spawned so far (core)
         self.marker_spawned = False
@@ -54,6 +56,7 @@ class Player:
         self.barriertile=False
         self.barrierenemy=False
         self.healers_spawned = 0
+        self.explore_target = None
         # BUILDER BOT MEMORY
         self.titaniumconveyor = None
         self.scanningmode = "bridge"
