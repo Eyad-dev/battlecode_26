@@ -123,6 +123,29 @@ def find_local_ore(self, ct: Controller):
 def find_exploration_target(self, ct: Controller):
     width = ct.get_map_width()
     height = ct.get_map_height()
+    
+    if not hasattr(self, 'failed_explore_targets'):
+        self.failed_explore_targets = set()
+
+    def nearest_passable(target: Position):
+        from collections import deque
+        visited = set()
+        queue = deque([target])
+        visited.add((target.x, target.y))
+        while queue:
+            pos = queue.popleft()
+            if (pos.x, pos.y) in self.failed_explore_targets:
+                continue
+            if not ct.is_in_vision(pos):
+                return pos
+            if ct.is_tile_passable(pos):
+                return pos
+            for dx, dy in [(0,1),(0,-1),(1,0),(-1,0)]:
+                nx, ny = pos.x + dx, pos.y + dy
+                if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
+                    visited.add((nx, ny))
+                    queue.append(Position(nx, ny))
+        return None
 
     candidates = [
         Position(0, 0),
@@ -131,18 +154,22 @@ def find_exploration_target(self, ct: Controller):
         Position(width - 1, height - 1),
         Position(width // 2, height // 2),
     ]
-    
-    for pos in candidates:
-        if not ct.is_in_vision(pos):
-            return pos
-    
+
     step = ct.get_vision_range() if hasattr(ct, 'get_vision_range') else 4
-    for x in range(0, width, step):
-        for y in range(0, height, step):
-            pos = Position(x, y)
-            if not ct.is_in_vision(pos):
-                return pos
-    
+    grid_candidates = [
+        Position(x, y)
+        for x in range(0, width, step)
+        for y in range(0, height, step)
+    ]
+
+    for pos in candidates + grid_candidates:
+        if (pos.x, pos.y) in self.failed_explore_targets:
+            continue
+        if not ct.is_in_vision(pos):
+            target = nearest_passable(pos)
+            if target is not None:
+                return target
+
     return None
 
 def find_the_enemy(self, ct: Controller):
@@ -152,8 +179,15 @@ def find_the_enemy(self, ct: Controller):
     print("in find")
     find_local_ore(self, ct)
     tiles = ct.get_nearby_tiles()
+    for tile in tiles:
+        if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.CORE and ct.get_team(ct.get_tile_building_id(tile)) != self.our_team :
+            print("[FIND] Enemy core directly visible, locking coords")
+            self.enemycoord = tile
+            if self.symmetry is not None:
+                self.enemyore = mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
+            return
 
-    editedtiles= set(tiles)
+    editedtiles = set(tiles)
     for tile in tiles:
         if ct.get_tile_env(tile)== Environment.EMPTY:
             editedtiles.discard(tile) 
@@ -167,24 +201,45 @@ def find_the_enemy(self, ct: Controller):
         self.enemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
         if self.localorepos is not None:
             self.enemyore = mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
-            print(self.enemycoord)
-    elif len(farpoints)>0:
+        print(self.enemycoord)
+        return
+
+    if len(farpoints)>0:
+        self.explore_target = None
+        self.explore_stuck_turns = 0
         if self.current_target is None:
             self.mirroredpoints = farpoints
             orient(self, ct)
         else:
             movemode(self, ct, ct.get_position(), self.current_target)
+        return
 
-    else:
-        if self.explore_target is None or ct.is_in_vision(self.explore_target):
-            self.explore_target = find_exploration_target(self, ct)
-            print(f"[EXPLORE] New exploration target: {self.explore_target}")
-        
-        if self.explore_target is not None:
-            movemode(self, ct, ct.get_position(), self.explore_target)
+    # No symmetry data available so explore
+    if self.explore_target is None or ct.is_in_vision(self.explore_target):
+        self.explore_target = find_exploration_target(self, ct)
+        self.explore_stuck_turns = 0
+        self.explore_last_pos = None
+        print(f"[EXPLORE] New target: {self.explore_target}")
+
+    if self.explore_target is not None:
+        currentpos = ct.get_position()
+
+        if self.explore_last_pos == currentpos:
+            self.explore_stuck_turns += 1
         else:
-            print("roomba — map fully seen, symmetry unresolved")
-            movemode(self, ct, ct.get_position())
+            self.explore_stuck_turns = 0
+        self.explore_last_pos = currentpos
+
+        if self.explore_stuck_turns > 5:
+            print(f"[EXPLORE] Stuck on {self.explore_target}, blacklisting")
+            self.failed_explore_targets.add((self.explore_target.x, self.explore_target.y))
+            self.explore_target = None
+            self.explore_stuck_turns = 0
+        else:
+            movemode(self, ct, currentpos, self.explore_target)
+    else:
+        print("roomba — no reachable unseen tiles left")
+        movemode(self, ct, ct.get_position())
 
 
 def reach_enemy_core(self, ct: Controller):
@@ -396,7 +451,7 @@ def side(loc, ex, ey):
         return (3, -loc.y)
 
 def calculatebarrierlocs(self, ct: Controller):
-    if self.barrierlocs :
+    if len(self.barrierlocs)>0 :
         return
     barriers= []
     for dx in range(-2, 3):
@@ -406,7 +461,7 @@ def calculatebarrierlocs(self, ct: Controller):
                 width = ct.get_map_width()
                 height = ct.get_map_height()
                 if loc.x == 0 or loc.x == width - 1 or loc.y == 0 or loc.y == height - 1:
-                    if dx is -2 or dx is 2 or dy is -2 or dy is 2:
+                    if dx == -2 or dx == 2 or dy == -2 or dy == 2:
                         barriers.append(loc)
                     else:
                         continue
@@ -420,11 +475,11 @@ def calculatebarrierlocs(self, ct: Controller):
 def movetotarget(self,ct: Controller):
     if self.nextchoke in ct.get_nearby_tiles() and ct.get_tile_builder_bot_id(self.nextchoke) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextchoke))== self.our_team and ct.get_id()!= ct.get_tile_builder_bot_id(self.nextchoke):
         print("friendly bot is blocking barrier position, finding new loc")
-        if self.barrierlocs is not None and self.nextchoke in self.barrierlocs:
+        if len(self.barrierlocs) >0 and self.nextchoke in self.barrierlocs:
             print("new loc")
             if self.nextchoke in self.barrierlocs:
                 self.barrierlocs.remove(self.nextchoke)
-            if self.barrierlocs:
+            if len(self.barrierlocs) >0:
                 self.nextchoke= self.barrierlocs.pop()
                 self.attack = "MOVE"
             else: 
@@ -437,15 +492,15 @@ def movetotarget(self,ct: Controller):
     elif self.nextchoke in ct.get_nearby_tiles() and (ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.BARRIER or ct.get_tile_env(self.nextchoke) == Environment.WALL or ct.is_tile_passable(self.nextchoke)== False) :
         if self.nextchoke in self.barrierlocs:
             self.barrierlocs.remove(self.nextchoke)
-            if self.barrierlocs:
-                self.nextchoke= self.barrierlocs.pop()
-            else: 
-                self.chocked= True
-                return
+        if len(self.barrierlocs) >0:
+            self.nextchoke= self.barrierlocs.pop()
+        else: 
+            self.chocked= True
+            return
     elif self.nextchoke in ct.get_nearby_tiles() and (ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.MARKER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.HARVESTER or ct.get_entity_type(ct.get_tile_building_id(self.nextchoke)) == EntityType.FOUNDRY) :
         if self.nextchoke in self.barrierlocs:
             self.barrierlocs.remove(self.nextchoke)
-        if self.barrierlocs:
+        if len(self.barrierlocs) >0:
             self.nextchoke= self.barrierlocs.pop()
         else: 
             self.chocked= True
@@ -523,7 +578,7 @@ def barrierboba(self, ct:Controller):
         ct.build_barrier(self.nextchoke)
         if self.nextchoke in self.barrierlocs:
             self.barrierlocs.remove(self.nextchoke)
-        if self.barrierlocs:
+        if len(self.barrierlocs) >0:
             self.nextchoke= self.barrierlocs.pop()
             self.chockerstate= "MOVE"
         else:
@@ -537,7 +592,7 @@ def barrierboba(self, ct:Controller):
         print("barrier or foundry exists, next barrier incoming")
         if self.nextchoke in self.barrierlocs:
             self.barrierlocs.remove(self.nextchoke)
-        if self.barrierlocs:
+        if len(self.barrierlocs) >0:
             self.nextchoke= self.barrierlocs.pop()
             self.chockerstate= "MOVE"
 
@@ -554,7 +609,7 @@ def choke_the_enemy(self, ct:Controller):
         for tile in tiles:
             if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.BARRIER:
                 barriertile= True
-            if ct.  get_entity_type(ct.get_tile_building_id(tile)) == EntityType.CORE and self.our_team!= ct.get_team(ct.get_tile_building_id(tile)):
+            if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.CORE and self.our_team!= ct.get_team(ct.get_tile_building_id(tile)):
                 barrierenemy= True
         if barrierenemy and barriertile:
             self.chockerstate= "STARTER"
@@ -572,7 +627,7 @@ def choke_the_enemy(self, ct:Controller):
                 print("barrier exists")
                 if self.nextchoke in self.barrierlocs:
                     self.barrierlocs.remove(self.nextchoke)
-                if self.barrierlocs:
+                if len(self.barrierlocs) >0:
                     self.nextchoke= self.barrierlocs.pop()
         if  not self.barrierlocs:
             print("choking done :)")

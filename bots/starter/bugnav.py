@@ -74,7 +74,7 @@ class BugNav:
 
         try_build_road(ct, ct.get_position().add(dir))
         
-        if BugNav.ct.can_move(dir)  and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_TITANIUM and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_AXIONITE:
+        if BugNav.ct.can_move(dir)  and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_AXIONITE:
             BugNav.ct.move(dir)
             print(f"[BugNav] moveto: moved in dir={dir}")
             if BugNav.lastObstacleFound is not None:
@@ -93,7 +93,7 @@ class BugNav:
         for x in range(16):
             print(f"[BugNav] moveto: trying rotation {x}, dir={dir}")
             try_build_road(ct, ct.get_position().add(dir))
-            if BugNav.ct.can_move(dir)  and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_TITANIUM and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_AXIONITE:
+            if BugNav.ct.can_move(dir) and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_AXIONITE:
                 BugNav.ct.move(dir)
                 print(f"[BugNav] moveto: moved after rotation in dir={dir}")
                 return
@@ -108,7 +108,7 @@ class BugNav:
 
         print(f"[BugNav] moveto: after loop, final try dir={dir}")
         try_build_road(ct, ct.get_position().add(dir))
-        if BugNav.ct.can_move(dir)  and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_TITANIUM and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_AXIONITE:
+        if BugNav.ct.can_move(dir)  and ct.get_tile_env(ct.get_position().add(dir)) and ct.get_tile_env(ct.get_position().add(dir)) != Environment.ORE_AXIONITE:
             BugNav.ct.move(dir)
             print(f"[BugNav] moveto: final move in dir={dir}")
 
