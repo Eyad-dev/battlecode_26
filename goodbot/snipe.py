@@ -29,18 +29,42 @@ def movemode(self, ct:Controller, currentpos, destination=None):
         self.nav.moveto(ct, destination)
         return
 
+def unlockedenemy(self, ct:Controller):
+    self.unlockedenemycoord= mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), "r")
 
 
+def reachunlockedenemycoord(self, ct: Controller):
+    currentpos = ct.get_position()
+    if not ct.is_in_vision(self.unlockedenemycoord):
+        print("moving to enemy core")
+        self.prevpos = currentpos
+        self.turnstaken = 0
+        movemode(self, ct, currentpos, self.unlockedenemycoord)
+        return
+    elif ct.is_in_vision(self.unlockedenemycoord):
+        if ct.get_entity_type(ct.get_tile_building_id(self.unlockedenemycoord))== EntityType.CORE:
+            self.enemycoord = self.unlockedenemycoord  
+        else:
+            if "x" in possible:
+                self.unlockedenemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), "x")
+            elif "y" in possible:
+                self.unlockedenemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), "y")
+    return
 
 
-def check_symmetry(self, ct: Controller, tiles: list[Position]):
+def check_symmetry(self, ct: Controller):
     global possible, locked
     if locked is not None:
         return locked, None
+    
 
-    if tiles is None:
-        return locked, None
+    tiles = ct.get_nearby_tiles()
+    editedtiles= set(tiles)
+    for tile in tiles:
+        if ct.get_tile_env(tile)== Environment.EMPTY:
+            editedtiles.discard(tile)
 
+    tiles= set(editedtiles)
     width = ct.get_map_width()
     height = ct.get_map_height()
     mirroredpoints= []
@@ -82,27 +106,27 @@ def check_symmetry(self, ct: Controller, tiles: list[Position]):
 def orient(self, ct: Controller):
     print("in orient")
     global possible, locked
-    if self.current_target is None:
-        pos, mirrored, tiletype, d = self.mirroredpoints[0]
-        self.current_target = mirrored
-        print(f"[TARGET LOCK] Locked target {self.current_target}")
+    tiles = ct.get_nearby_tiles()
+    for tile in tiles:
+        if tile in self.mirroredpoints:
+            for entry in self.mirroredpoints:
+                if mirrored == tile:
+                    pos, mirrored, tiletype, d = entry    
+            print(f"Checking point {pos} with mirror {mirrored} and tile type {tiletype}")
+            if ct.get_tile_env(mirrored) != tiletype:
+                possible.discard(d)
+                self.mirroredpoints = [
+                    (pos, mirrored, tile, d)
+                    for pos, mirrored, tile, d in self.mirroredpoints
+                    if d in possible
+                ]
+                if d == "r":
+                    print("panik")
+                    self.unlockedenemycoord= (self.ourcoord, ct.get_map_width(), ct.get_map_height(), "x")
+                elif d == "x" and "r" not in possible:
+                    self.unlockedenemycoord= (self.ourcoord, ct.get_map_width(), ct.get_map_height(), "y")
 
-    mirrored = self.current_target
-    print(f"Checking point {pos} with mirror {mirrored} and tile type {tiletype}")
 
-    if ct.is_in_vision(mirrored):
-        if ct.get_tile_env(mirrored) != tiletype:
-            possible.discard(d)
-        self.mirroredpoints = [
-            (pos, mirrored, tile, d)
-            for pos, mirrored, tile, d in self.mirroredpoints
-            if d in possible
-        ]
-        print("in mirrored")   
-    else:
-        currentpos= ct.get_position()
-        movemode(self, ct, currentpos, mirrored)
-        return
 
     if len(possible)==1:
         locked= next(iter(possible))
@@ -145,45 +169,38 @@ def find_exploration_target(self, ct: Controller):
     return None
 
 def find_the_enemy(self, ct: Controller):
-
     if self.enemycoord is not None:
         return
+
+    if self.unlockedenemycoord is None:
+        unlockedenemy(self, ct)
+
     print("in find")
     find_local_ore(self, ct)
-    tiles = ct.get_nearby_tiles()
+    reachunlockedenemycoord(self, ct)
 
-    editedtiles= set(tiles)
-    for tile in tiles:
-        if ct.get_tile_env(tile)== Environment.EMPTY:
-            editedtiles.discard(tile) 
-
-    tiles = list(editedtiles) 
-    symmetry, farpoints = check_symmetry(self, ct, tiles)
+    symmetry, farpoints = check_symmetry(self, ct)
     self.symmetry = symmetry
 
     if symmetry is not None:
-        print ("celebrate")
-        self.enemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
-        if self.localorepos is not None:
-            self.enemyore = mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
-            print(self.enemycoord)
-    elif len(farpoints)>0:
-        if self.current_target is None:
-            self.mirroredpoints = farpoints
-            orient(self, ct)
+        print("celebrate")
+        candidate = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
+        # Only confirm enemycoord if we can see the tile and a building is there
+        if ct.is_in_vision(candidate):
+            if ct.get_entity_type(ct.get_tile_building_id(candidate)):
+                self.enemycoord = candidate
+                if self.localorepos is not None:
+                    self.enemyore = mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), symmetry)
+                    print(self.enemycoord)
+            # else: tile is visible but no core — symmetry may be wrong, don't assign
         else:
-            movemode(self, ct, ct.get_position(), self.current_target)
+            # Can't see it yet; reachunlockedenemycoord will confirm once we get there
+            self.unlockedenemycoord = candidate
 
-    else:
-        if self.explore_target is None or ct.is_in_vision(self.explore_target):
-            self.explore_target = find_exploration_target(self, ct)
-            print(f"[EXPLORE] New exploration target: {self.explore_target}")
-        
-        if self.explore_target is not None:
-            movemode(self, ct, ct.get_position(), self.explore_target)
-        else:
-            print("roomba — map fully seen, symmetry unresolved")
-            movemode(self, ct, ct.get_position())
+    elif farpoints and self.current_target is None:
+        self.mirroredpoints = farpoints
+        orient(self, ct)
+
 
 
 def reach_enemy_core(self, ct: Controller):
@@ -191,9 +208,6 @@ def reach_enemy_core(self, ct: Controller):
         return
     currentpos = ct.get_position()
     if not ct.is_in_vision(self.enemycoord):
-        self.mode = "GREEDY"
-        if self.mode == "GREEDY" and self.prevpos == currentpos:
-            self.mode = "BUG"
         print("moving to enemy core")
         self.prevpos = currentpos
         self.turnstaken= 0
@@ -549,7 +563,7 @@ def choke_the_enemy(self, ct:Controller):
         for tile in tiles:
             if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.BARRIER:
                 barriertile= True
-            if ct.  get_entity_type(ct.get_tile_building_id(tile)) == EntityType.CORE and self.our_team!= ct.get_team(ct.get_tile_building_id(tile)):
+            if ct.get_entity_type(ct.get_tile_building_id(tile)) == EntityType.CORE and self.our_team!= ct.get_team(ct.get_tile_building_id(tile)):
                 barrierenemy= True
         if barrierenemy and barriertile:
             self.chockerstate= "STARTER"
