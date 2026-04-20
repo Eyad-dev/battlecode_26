@@ -57,10 +57,6 @@ class Player:
         self.barrierenemy=False
         self.healers_spawned = 0
         self.explore_target = None
-        self.explore_target = None
-        self.explore_stuck_turns = 0
-        self.explore_last_pos = None
-        self.failed_explore_targets = set()
         # BUILDER BOT MEMORY
         self.titaniumconveyor = None
         self.scanningmode = "bridge"
