@@ -10,6 +10,7 @@ from healer import *
 from axioniter import *
 from gunner import *
 from bugnav import *
+from patrolhealers import*
 
 # non-centre directions
 DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
@@ -80,6 +81,7 @@ class Player:
         self.temp_pos_A_foundary = None
         self.hook_offset = 0
         self.sweep_dir = 0
+        self.orbiter= OrbitBot()
         # SPLITTER & GUNNER MEMORY
         self.splitter_positions = []
         self.gunner_positions = []
@@ -103,6 +105,7 @@ class Player:
                     if ct.get_entity_type(entity_id) == EntityType.CORE:
                         core_pos = ct.get_position(entity_id)
                         self.ourcoord = core_pos
+                        self.orbiter.set_core(core_pos)
                         self.core_tiles = [core_pos.add(Direction.NORTH), core_pos.add(Direction.SOUTH), core_pos.add(Direction.EAST), core_pos.add(Direction.WEST), core_pos.add(Direction.NORTHEAST), core_pos.add(Direction.NORTHWEST), core_pos.add(Direction.SOUTHEAST), core_pos.add(Direction.SOUTHWEST)]
 
                         self.our_team = ct.get_team(entity_id)
@@ -116,10 +119,13 @@ class Player:
                             self.axionite_foundary_states = 0
                             self.bot_state = "AXIONITER"
                         elif ct.get_position().direction_to(self.ourcoord) == Direction.NORTH \
-                        or ct.get_position().direction_to(self.ourcoord) == Direction.EAST \
-                        or ct.get_position().direction_to(self.ourcoord) == Direction.SOUTH \
-                        or ct.get_position().direction_to(self.ourcoord) == Direction.WEST: 
+                        or ct.get_position().direction_to(self.ourcoord) == Direction.SOUTH\
+                            or ct.get_position().direction_to(self.ourcoord) == Direction.EAST: 
                             self.bot_state = "HEALER"
+                        elif ct.get_position().direction_to(self.ourcoord) == Direction.NORTHEAST:
+                            self.bot_state = "SNIPER"
+                        elif  ct.get_position().direction_to(self.ourcoord) == Direction.WEST:
+                            self.bot_state = "PATROLHEALER"
 
                         
                         print(self.bot_state)
@@ -141,6 +147,13 @@ class Player:
             elif self.bot_state == "AXIONITER":
                 print(f"[BUILDER RUN] AXIONITER mode")
                 builderrun(self, ct)
+            elif self.bot_state == "SNIPER":
+                print(f"[BUILDER RUN] SNIPER mode")
+                find_the_enemy(self, ct)
+                snipe_the_enemy(self, ct)
+            elif self.bot_state == "PATROLHEALER":
+                print(f"[BUILDER RUN] PATROL HEALER mode")
+                self.orbiter.thelastdance(ct)
 
 
 
