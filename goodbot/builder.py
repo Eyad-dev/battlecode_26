@@ -49,8 +49,10 @@ def cardinal_toward_base(from_pos: Position, base_pos: Position):
 
 def try_build_road(ct: Controller, tile_pos: Position):
     if ct.can_build_road(tile_pos):
-        ct.build_road(tile_pos)
-        print(f"  [try_build_road] Built road at {tile_pos}")
+        if not (ct.get_tile_env(tile_pos) in [Environment.ORE_TITANIUM, Environment.ORE_AXIONITE]):
+            ct.build_road(tile_pos)
+            print("yea dog I built that")
+            print(f"  [try_build_road] Built road at {tile_pos}")
 
 def is_wall_tile(ct: Controller, pos: Position):
     if not (0 <= pos.x < ct.get_map_width()) or not (0 <= pos.y < ct.get_map_height()):
@@ -297,6 +299,23 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
         if hasattr(self, 'bug_states'):
             self.bug_states.clear()
         return False
+    # #Scanning mid bug nav for ores
+    # if goal_pos != self.ourcoord and goal_pos != self.splitter_foundry_pos:
+    #     ores = scan_ore_vision(ct, GameConstants.BUILDER_BOT_VISION_RADIUS_SQ)
+    #     for ore_pos in ores:
+    #         if (ct.get_tile_env(ore_pos) == Environment.ORE_TITANIUM):
+    #             d_to_ore = current_pos.direction_to(ore_pos)
+    #             hyp_pos = current_pos.add(d_to_ore)
+    #             hyp_dist_sqr = (current_pos.x - hyp_pos.x)**2 + (current_pos.y - hyp_pos.y)**2
+    #             if ct.can_move(d_to_ore) and ct.get_tile_env(hyp_pos) != Environment.WALL and hyp_dist_sqr <=2:
+    #                 print(f"[BUG -> GREEDY OPPORTUNITY] Found reachable ore at {ore_pos}. Abandoning bug-nav.")
+    #                 self.target_ore = ore_pos
+    #                 self.mode = "GREEDY"
+    #                 self.hit_distance = 99999
+    #                 self.bug_rotateright = None
+    #                 self.bug_lastObstacleFound = None
+    #                 if hasattr(self, 'bug_states'): self.bug_states.clear()
+    #                 return True
 
     # -------------------------------------------------------------
     # BUGNAV ALGORITHM INTEGRATION (Adapted from bugnav.py)
@@ -339,10 +358,13 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
     if self.bug_lastObstacleFound is not None:
         dir = current_pos.direction_to(self.bug_lastObstacleFound)
 
-    # Attempt to build road ahead
-    try_pos = current_pos.add(dir)
-    if ct.can_build_road(try_pos):
-        try_build_road(ct, try_pos)
+    # # Attempt to build road ahead
+    # try_pos = current_pos.add(dir)
+    # if ct.can_build_road(try_pos):
+    #     if not ((ct.get_tile_env(try_pos) == [Environment.ORE_TITANIUM, Environment.ORE_AXIONITE])):
+    #         print("yea dog I built that 1")
+    #         try_build_road(ct, try_pos)            
+
 
     # 4. ATTEMPT TO MOVE STRAIGHT ALONG OBSTACLE
     if can_move_safe(dir):
@@ -396,7 +418,10 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
     # 6. ROTATE AROUND OBSTACLE TO FIND CLEAR PATH
     for x in range(16):
         try_pos = current_pos.add(dir)
-        if ct.can_build_road(try_pos):
+        if (ct.get_tile_env(try_pos) in [Environment.ORE_TITANIUM, Environment.ORE_AXIONITE]):
+            pass
+        else:
+            print("yea dog I built that 2")
             try_build_road(ct, try_pos)
             
         if can_move_safe(dir):
@@ -419,7 +444,11 @@ def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position
     # 7. FINAL FALLBACK MOVE
     try_pos = current_pos.add(dir)
     if ct.can_build_road(try_pos):
-        try_build_road(ct, try_pos)
+        if (ct.get_tile_env(try_pos) == [Environment.ORE_TITANIUM, Environment.ORE_AXIONITE]):
+            pass
+        else:
+            print("yea dog I built that 3")
+            try_build_road(ct, try_pos)
     if can_move_safe(dir):
         ct.move(dir)
         new_pos = ct.get_position()
