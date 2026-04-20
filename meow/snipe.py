@@ -192,9 +192,7 @@ def find_the_enemy(self, ct: Controller):
                 if self.localorepos is not None:
                     self.enemyore = mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), symmetry)
                     print(self.enemycoord)
-            # else: tile is visible but no core — symmetry may be wrong, don't assign
         else:
-            # Can't see it yet; reachunlockedenemycoord will confirm once we get there
             self.unlockedenemycoord = candidate
 
     elif farpoints and self.current_target is None:
@@ -213,10 +211,6 @@ def reach_enemy_core(self, ct: Controller):
         self.turnstaken= 0
         movemode(self, ct, currentpos, self.enemycoord)
         return
-    # elif distance_squared(currentpos, self.enemycoord) > 5:
-    #     print("moving closer to enemy core")
-    #     movemode(self, ct, currentpos, self.enemycoord)
-    #     return
     else:
         self.attack = "FIND"
         self.chockerstate= "STARTER"
@@ -323,36 +317,41 @@ def place_sentinels(self, ct: Controller):
                 ct.move(direction)
 
     else:
+        nearby= ct.get_nearby_tiles()
+        if self.nextsentinelpos in nearby:
 
-        if ct.get_tile_builder_bot_id(self.nextsentinelpos) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextsentinelpos))== self.our_team:
-            print("friendly bot is blocking sentinel position, finding new position PLACE SENTINEL")
-            if self.bridges is not None and self.nextsentinelpos in self.bridges:
-                self.bridges.discard(self.nextsentinelpos)
-            if self.titaniumconveyor is not None and self.nextsentinelpos in self.titaniumconveyor:
-                self.titaniumconveyor.discard(self.nextsentinelpos)
-                self.attack = "FIND"
-            return
-
-
-        dir = self.nextsentinelpos.direction_to(self.enemycoord)
-        if ct.can_build_sentinel(self.nextsentinelpos, dir):
-            print("scooted, placing sentinel now", self.nextsentinelpos)
-            print(f"placing sentinel at {self.nextsentinelpos} facing {dir}")
-            self.sentinelsbuilt += 1
-
-            ct.build_sentinel(self.nextsentinelpos, dir)
-            self.attack = "FIND"
-            return
-        else:
-            id = ct.get_tile_building_id(self.nextsentinelpos)
-            if ct.get_entity_type(id) == EntityType.ROAD:
-                print("there is a tile to break, switching to damage mode")
-                self.attack = "DAMAGE"
-                movemode(self,ct,self.nextsentinelpos)
+            if ct.get_tile_builder_bot_id(self.nextsentinelpos) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextsentinelpos))== self.our_team:
+                print("friendly bot is blocking sentinel position, finding new position PLACE SENTINEL")
+                if self.bridges is not None and self.nextsentinelpos in self.bridges:
+                    self.bridges.discard(self.nextsentinelpos)
+                if self.titaniumconveyor is not None and self.nextsentinelpos in self.titaniumconveyor:
+                    self.titaniumconveyor.discard(self.nextsentinelpos)
+                    self.attack = "FIND"
                 return
-            sentinelcost = ct.get_sentinel_cost()
-            titaniumnow= ct.get_global_resources()
-            print(f"cannot build sentinel yet, have {titaniumnow} titanium, need {sentinelcost}")
+
+
+            dir = self.nextsentinelpos.direction_to(self.enemycoord)
+            if ct.can_build_sentinel(self.nextsentinelpos, dir):
+                print("scooted, placing sentinel now", self.nextsentinelpos)
+                print(f"placing sentinel at {self.nextsentinelpos} facing {dir}")
+                self.sentinelsbuilt += 1
+
+                ct.build_sentinel(self.nextsentinelpos, dir)
+                self.attack = "FIND"
+                return
+            else:
+                id = ct.get_tile_building_id(self.nextsentinelpos)
+                if ct.get_entity_type(id) == EntityType.ROAD:
+                    print("there is a tile to break, switching to damage mode")
+                    self.attack = "DAMAGE"
+                    movemode(self,ct,self.nextsentinelpos)
+                    return
+                sentinelcost = ct.get_sentinel_cost()
+                titaniumnow= ct.get_global_resources()
+                print(f"cannot build sentinel yet, have {titaniumnow} titanium, need {sentinelcost}")
+        else:
+            self.attack == "GO"
+            return
 
 
     return
@@ -383,7 +382,8 @@ def snipe_the_enemy(self, ct):
             self.nextsentinelpos= conveyor
             print("in go mode yeaaaa(conveyor) with target:", conveyor)
             self.attack = "GO"
-        else:           print("no targets found, going to roomba")
+        else:          
+            print("no targets found")
     elif self.attack == "GO":
         print("moving to next sentinel pos", self.nextsentinelpos)
         self.mode = "GREEDY"
@@ -418,8 +418,12 @@ def calculatebarrierlocs(self, ct: Controller):
                 loc = Position(self.enemycoord.x + dx, self.enemycoord.y + dy)
                 width = ct.get_map_width()
                 height = ct.get_map_height()
-
-                if 0 <= loc.x < width and 0 <= loc.y < height:
+                if loc.x == 0 or loc.x == width - 1 or loc.y == 0 or loc.y == height - 1:
+                    if dx == -2 or dx == 2 or dy == -2 or dy == 2:
+                        barriers.append(loc)
+                    else:
+                        continue
+                elif 0 <= loc.x < width and 0 <= loc.y < height:
                     barriers.append(loc)
     self.barrierlocs = sorted(barriers, key=lambda loc: side(loc, self.enemycoord.x, self.enemycoord.y))
     print ("calculated barrier locs:", self.barrierlocs)
@@ -482,15 +486,6 @@ def breaktheirlegs(self,ct:Controller):
         self.chockerstate= "SCOOT"
 
 def scoot(self,ct:Controller):
-
-    # if ct.get_tile_builder_bot_id(self.nextchoke) is not None and ct.get_team(ct.get_tile_builder_bot_id(self.nextchoke))== self.our_team:
-    #         print("friendly bot is blocking barrier position, finding new position choke")
-    #         if self.barrierlocs is not None and self.nextchoke in self.barrierlocs:
-    #             self.barrierlocs.discard(self.nextchoke)
-    #             self.nextchoke= self.barrierlocs.pop()
-    #             self.attack == "MOVE"
-    #         return
-
     if ct.get_position() == self.nextchoke:
         print("at choke pos, will scoot")
 
