@@ -33,23 +33,18 @@ def unlockedenemy(self, ct:Controller):
     self.unlockedenemycoord= mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), "r")
 
 
-def reachunlockedenemycoord(self, ct: Controller):
+def reachunlockedenemycoord(self, ct:Controller):
     currentpos = ct.get_position()
     if not ct.is_in_vision(self.unlockedenemycoord):
         print("moving to enemy core")
         self.prevpos = currentpos
-        self.turnstaken = 0
+        self.turnstaken= 0
         movemode(self, ct, currentpos, self.unlockedenemycoord)
         return
-    elif ct.is_in_vision(self.unlockedenemycoord):
-        if ct.get_entity_type(ct.get_tile_building_id(self.unlockedenemycoord))== EntityType.CORE:
-            self.enemycoord = self.unlockedenemycoord  
-        else:
-            if "x" in possible:
-                self.unlockedenemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), "x")
-            elif "y" in possible:
-                self.unlockedenemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), "y")
+    elif ct.is_in_vision(self.unlockedenemycoord) and ct.get_entity_type(ct.get_tile_building_id(self.unlockedenemycoord)):
+        self.enemycoord= self.unlockedenemycoord
     return
+
 
 
 def check_symmetry(self, ct: Controller):
@@ -169,37 +164,33 @@ def find_exploration_target(self, ct: Controller):
     return None
 
 def find_the_enemy(self, ct: Controller):
+
     if self.enemycoord is not None:
         return
-
+    
     if self.unlockedenemycoord is None:
-        unlockedenemy(self, ct)
+        unlockedenemy(self,ct)
 
     print("in find")
     find_local_ore(self, ct)
-    reachunlockedenemycoord(self, ct)
+    tiles = ct.get_nearby_tiles()
+    reachunlockedenemycoord(self,ct)
 
+ 
     symmetry, farpoints = check_symmetry(self, ct)
     self.symmetry = symmetry
 
     if symmetry is not None:
-        print("celebrate")
-        candidate = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
-        # Only confirm enemycoord if we can see the tile and a building is there
-        if ct.is_in_vision(candidate):
-            if ct.get_entity_type(ct.get_tile_building_id(candidate)):
-                self.enemycoord = candidate
-                if self.localorepos is not None:
-                    self.enemyore = mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), symmetry)
-                    print(self.enemycoord)
-            # else: tile is visible but no core — symmetry may be wrong, don't assign
-        else:
-            # Can't see it yet; reachunlockedenemycoord will confirm once we get there
-            self.unlockedenemycoord = candidate
+        print ("celebrate")
+        self.enemycoord = mirror(self.ourcoord, ct.get_map_width(), ct.get_map_height(), symmetry)
+        if self.localorepos is not None:
+            self.enemyore = mirror(self.localorepos, ct.get_map_width(), ct.get_map_height(), self.symmetry)
+            print(self.enemycoord)
+    elif len(farpoints)>0:
+        if self.current_target is None:
+            self.mirroredpoints = farpoints
+            orient(self, ct)
 
-    elif farpoints and self.current_target is None:
-        self.mirroredpoints = farpoints
-        orient(self, ct)
 
 
 
