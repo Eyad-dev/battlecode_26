@@ -450,7 +450,10 @@ def movetotarget(self,ct: Controller):
         movemode(self, ct, ct.get_position(), self.nextchoke )
         return
     else:
-        self.chockerstate= "BREAK"
+        if ct.can_build_barrier(self.nextchoke):
+            self.chockerstate== "SCOOT"
+        else:
+            self.chockerstate= "BREAK"
 
 def breaktheirlegs(self,ct:Controller):
     id = ct.get_tile_building_id(ct.get_position())
