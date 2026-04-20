@@ -278,73 +278,154 @@ def handle_vision_and_harvesting(self, ct: Controller, current_pos: Position) ->
 
 def run_bug_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
     if self.loopies:
-        self.mode = "GREEDY" 
+        self.mode = "GREEDY"
 
     current_dist_sq = (current_pos.x - goal_pos.x)**2 + (current_pos.y - goal_pos.y)**2
     print(f"[BUG] At {current_pos} | Goal {goal_pos} | dist²={current_dist_sq} | hit_dist={self.hit_distance}")
 
+    # 1. EXIT CONDITION: We are closer to the target than when we hit the wall
     if current_dist_sq < self.hit_distance:
         print(f"[BUG] Closer than hit distance — switching to GREEDY")
         self.mode = "GREEDY"
         self.target_greedy = goal_pos
         self.hit_distance = 999999
+        
+        # Reset internal bugnav states
+        self.bug_rotateright = None
+        self.bug_lastObstacleFound = None
+        self.bug_turnsmovingtoobstacle = 0
+        if hasattr(self, 'bug_states'):
+            self.bug_states.clear()
         return False
+
+    # -------------------------------------------------------------
+    # BUGNAV ALGORITHM INTEGRATION (Adapted from bugnav.py)
+    # -------------------------------------------------------------
     
-    self.hook_offset = -2
-    self.sweep_dir = 1
-    test_dir = self.wall_follow_direction
+    # Initialize internal bug states on the bot instance dynamically
+    if not hasattr(self, 'bug_states'):
+        self.bug_states = set()
+        self.bug_rotateright = None
+        self.bug_lastObstacleFound = None
+        self.bug_turnsmovingtoobstacle = 0
 
-    hit_dir = self.wall_follow_direction
+    # 2. LOOP DETECTION (Matches bugnav.py checkstates logic)
+    if self.bug_lastObstacleFound is not None:
+        directiontoobstacle = current_pos.direction_to(self.bug_lastObstacleFound)
+        # Encode state cleanly to track loops
+        state = (current_pos.x, current_pos.y, directiontoobstacle, self.bug_rotateright)
+        
+        if state in self.bug_states:
+            print("[BUG] LOOP DETECTED → resetting bug states")
+            self.bug_rotateright = None
+            self.bug_lastObstacleFound = None
+            self.bug_turnsmovingtoobstacle = 0
+            self.bug_states.clear()
+        else:
+            self.bug_states.add(state)
 
-    # print(f"[BUG] Still wall-following | wall_dir={self.wall_follow_direction}")
-    # check_ore_direction = current_pos.direction_to(goal_pos)
-    # test_dir = rotate(self.wall_follow_direction, -2)
+    # Helper: Builders shouldn't step on ores during pathfinding
+    def can_move_safe(d):
+        pos = current_pos.add(d)
+        if not (0 <= pos.x < ct.get_map_width()) and (0 <= pos.y < ct.get_map_height()):
+            return False
+        env = ct.get_tile_env(pos)
+        if env == Environment.ORE_TITANIUM or env == Environment.ORE_AXIONITE:
+            return False
+        return ct.can_move(d)
+
+    # 3. DETERMINE INITIAL DIRECTION
+    dir = current_pos.direction_to(goal_pos)
+    if self.bug_lastObstacleFound is not None:
+        dir = current_pos.direction_to(self.bug_lastObstacleFound)
+
+    # Attempt to build road ahead
+    try_pos = current_pos.add(dir)
+    if ct.can_build_road(try_pos):
+        try_build_road(ct, try_pos)
+
+    # 4. ATTEMPT TO MOVE STRAIGHT ALONG OBSTACLE
+    if can_move_safe(dir):
+        ct.move(dir)
+        new_pos = ct.get_position()
+        self.path.append(new_pos)
+        self.loopies = loopyloops(self.path)
+        
+        if self.bug_lastObstacleFound is not None:
+            self.bug_turnsmovingtoobstacle += 1
+            self.bug_lastObstacleFound = new_pos.add(dir)
+            
+            # Reset if tracing obstacle for too long or if obstacle is off map
+            if self.bug_turnsmovingtoobstacle >= 100 or not (0 <= self.bug_lastObstacleFound.x < ct.get_map_width() and 0 <= self.bug_lastObstacleFound.y < ct.get_map_height()):
+                self.bug_rotateright = None
+                self.bug_lastObstacleFound = None
+                self.bug_turnsmovingtoobstacle = 0
+                self.bug_states.clear()
+        return True
+
+    # 5. BLOCKED - DETERMINE ROTATION BIAS (Matches bugnav.py updateRot logic)
+    self.bug_turnsmovingtoobstacle = 0
     
+    if self.bug_rotateright is None:
+        d_left = current_pos.direction_to(goal_pos)
+        d_right = current_pos.direction_to(goal_pos)
+        loc_left = current_pos
+        loc_right = current_pos
+        
+        # Scan left
+        for _ in range(8):
+            d_left = rotate(d_left, -1)
+            if can_move_safe(d_left):
+                loc_left = loc_left.add(d_left)
+                break
+        # Scan right
+        for _ in range(8):
+            d_right = rotate(d_right, 1)
+            if can_move_safe(d_right):
+                loc_right = loc_right.add(d_right)
+                break
+        
+        left_dist = (loc_left.x - goal_pos.x)**2 + (loc_left.y - goal_pos.y)**2
+        right_dist = (loc_right.x - goal_pos.x)**2 + (loc_right.y - goal_pos.y)**2
+        
+        if left_dist < right_dist:
+            self.bug_rotateright = False  # Left is better
+        else:
+            self.bug_rotateright = True   # Right is better
 
-    # Bug nav can get stuck in straight corridors if the goal is directly ahead or behind — add special check to rotate direction if aligned and close to goal
-    # but this thing buggy
-    # if ((current_pos.x - goal_pos.x == 0 or current_pos.y - goal_pos.y == 0) or
-    #         (current_pos.x - goal_pos.x == current_pos.y - goal_pos.y)) and (current_dist_sq <= 20):
-    #     print(f"[BUG] Orthogonal/diagonal alignment check triggered")
-    #     temp_dir = rotate(self.wall_follow_direction, 2)
-    #     if temp_dir == check_ore_direction:
-    #         print(f"[BUG] Direction correction applied")
-    #         test_dir = rotate(self.wall_follow_direction, 2)
-    for _ in range(8):
-        print(f"[BUG] Testing direction {test_dir}")
-        test_pos = current_pos.add(test_dir)
-        print(f"[BUG] Trying dir={test_dir} | pos={test_pos} | can_build_road={ct.can_build_road(test_pos)}")
-        if ct.can_build_road(test_pos):
-            try_build_road(ct, test_pos)
-            self.wall_follow_direction = test_dir
-            print()
-        if ct.can_move(test_dir):
-            ct.move(test_dir)
-            currentpos= ct.get_position()
-            self.path.append(currentpos.add(test_dir))
-            self.loopies= loopyloops(self.path)
-            print(f"[BUG] Moved {test_dir} to {test_pos}")
-            new_dir = test_dir
-
-            if hit_dir != new_dir:
-                right_side_directions = [rotate(new_dir,1), rotate(new_dir,2), rotate(new_dir,3)]
-                left_side_directions = [rotate(new_dir,-1), rotate(new_dir,-2), rotate(new_dir,-3)]
-
-                if hit_dir in right_side_directions:
-                    self.hook_offset = 2
-                    self.sweep_dir = -1
-                    print(f"[BUG] Hit was on the right side — setting hook_offset={self.hook_offset} and sweep_dir={self.sweep_dir}")
-                elif hit_dir in left_side_directions:
-                    self.hook_offset = -2
-                    self.sweep_dir = 1
-                    print(f"[BUG] Hit was on the left side — setting hook_offset={self.hook_offset} and sweep_dir={self.sweep_dir}")
-                print(f"[BUG] Found open tile — rotating wall follow direction to {self.wall_follow_direction}")
-
-            self.wall_follow_direction = rotate(new_dir, self.hook_offset)
-            print(f"[BUG] Updated wall follow direction to {self.wall_follow_direction} for next turn")
+    # 6. ROTATE AROUND OBSTACLE TO FIND CLEAR PATH
+    for x in range(16):
+        try_pos = current_pos.add(dir)
+        if ct.can_build_road(try_pos):
+            try_build_road(ct, try_pos)
+            
+        if can_move_safe(dir):
+            ct.move(dir)
+            new_pos = ct.get_position()
+            self.path.append(new_pos)
+            self.loopies = loopyloops(self.path)
             return True
-        test_dir = rotate(test_dir, 1)
-    print(f"[BUG] Completely trapped — waiting")
+            
+        newloc = current_pos.add(dir)
+        if (0 <= newloc.add(dir).x < ct.get_map_width()) and (0 <= newloc.add(dir).y < ct.get_map_height()):
+            self.bug_lastObstacleFound = current_pos.add(dir)
+            
+        # Rotate step based on bias
+        if self.bug_rotateright:
+            dir = rotate(dir, 1)   # Clockwise
+        else:
+            dir = rotate(dir, -1)  # Counter-clockwise
+
+    # 7. FINAL FALLBACK MOVE
+    try_pos = current_pos.add(dir)
+    if ct.can_build_road(try_pos):
+        try_build_road(ct, try_pos)
+    if can_move_safe(dir):
+        ct.move(dir)
+        new_pos = ct.get_position()
+        self.path.append(new_pos)
+        self.loopies = loopyloops(self.path)
+
     return True
 
 def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Position) -> bool:
@@ -400,27 +481,87 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
             print(f"[DEBUG] team_check={ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir)))} | our_team={self.our_team} | entity={ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir)))} | axionite_state={self.axionite_foundary_states}")
             if(ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) != self.our_team):
                 if (ct.can_move(conveyor_dir)):
+                    print("HAHAHAHA 1")
                     ct.move(conveyor_dir)
                     currentpos= ct.get_position()
                     self.path.append(currentpos.add(conveyor_dir))
                     self.loopies= loopyloops(self.path)
             elif (self.axionite_foundary_states == 6 or self.axionite_foundary_states == 0) and (((ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR or ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.BRIDGE) and (ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team)) or next_pos in self.core_tiles):
+                print("HAHAHAHA 2")
                 self.target_greedy = None
                 self.mode = "ROOMBA"
                 return True
-            elif self.axionite_foundary_states < 6 and (ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == EntityType.CONVEYOR and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team):
+            elif self.axionite_foundary_states < 6 and (ct.get_entity_type(ct.get_tile_building_id(current_pos.add(conveyor_dir))) in [EntityType.CONVEYOR, EntityType.BRIDGE, self.core_tiles] and ct.get_team(ct.get_tile_building_id(current_pos.add(conveyor_dir))) == self.our_team and current_pos not in self.core_tiles):
+                print("HAHAHAHA 3 - Bridge Override")
+                
+                # 1. Find a valid bridge landing that is strictly NOT a conveyor or bridge
+                best_landing = None
+                min_dist_to_goal = 999999
+                
+                for dx, dy in BRIDGE_TILES:
+                    target_pos = Position(current_pos.x + dx, current_pos.y + dy)
+                    
+                    # Check map bounds
+                    if not (0 <= target_pos.x < ct.get_map_width()) or not (0 <= target_pos.y < ct.get_map_height()):
+                        continue
+                        
+                    # Filter out invalid base environments
+                    env = ct.get_tile_env(target_pos)
+                    if env == Environment.WALL or env == Environment.ORE_TITANIUM or env == Environment.ORE_AXIONITE:
+                        continue
+                        
+                    # Explicitly reject conveyors, markers, and other bridges at the landing spot
+                    b_id = ct.get_tile_building_id(target_pos)
+                    if b_id is not None:
+                        e_type = ct.get_entity_type(b_id)
+                        if e_type in [EntityType.CONVEYOR, EntityType.MARKER, EntityType.BRIDGE]:
+                            continue
+                            
+                    # Pick the valid landing spot that gets us closest to the goal
+                    dist_sq = (target_pos.x - goal_pos.x)**2 + (target_pos.y - goal_pos.y)**2
+                    if dist_sq < min_dist_to_goal:
+                        min_dist_to_goal = dist_sq
+                        best_landing = target_pos
+                        
+                # 2. Execute the bridge build
+                if best_landing:
+                    if ct.get_action_cooldown() == 0:
+                        bridge_cost = ct.get_bridge_cost()[0]
+                        if ct.get_global_resources()[0] >= bridge_cost:
+                            
+                            # Clear current tile if necessary to place bridge start
+                            if ct.can_destroy(current_pos) and ct.get_entity_type(ct.get_tile_building_id(current_pos)) == EntityType.CONVEYOR:
+                                ct.destroy(current_pos)
+                                print(f"[BRIDGE OVERRIDE] Destroyed road/conveyor at {current_pos} to place bridge")
+                                
+                            if ct.can_build_bridge(current_pos, best_landing):
+                                ct.build_bridge(current_pos, best_landing)
+                                print(f"[BRIDGE OVERRIDE] Built bridge from {current_pos} to {best_landing}")
+                                
+                                # Set target_greedy to the landing spot so we naturally walk across it!
+                                self.target_greedy = best_landing
+                                self.mode = "GREEDY"
+                                return True
+                    else:
+                        print(f"[BRIDGE OVERRIDE] Waiting on cooldown/resources to build bridge to {best_landing}")
+                        return True # Consume turn waiting to build
+                        
+                # 3. Fallback: If absolutely no valid landing spot exists, move onto the conveyor
+                print("[BRIDGE OVERRIDE] No valid landing spot found! Falling back to standard movement.")
                 if ct.can_move(conveyor_dir):
                     ct.move(conveyor_dir)
-                    currentpos= ct.get_position()
+                    currentpos = ct.get_position()
                     self.path.append(currentpos.add(conveyor_dir))
-                    self.loopies= loopyloops(self.path)
+                    self.loopies = loopyloops(self.path)
                     return True
-            elif (goal_pos == self.ourcoord and next_pos == self.ourcoord or self.axionite_foundary_states == 0):
+            elif (goal_pos == self.ourcoord and next_pos == self.ourcoord) and (self.axionite_foundary_states == 0 or self.axionite_foundary_states == 6):
+                print("HAHAHAHA 4")
                 if (next_pos in self.core_tiles):
                     self.target_greedy = None
                     self.mode = "ROOMBA"
                     return True
             elif (goal_pos == self.splitter_foundry_pos and next_pos == self.splitter_foundry_pos or next_pos == self.temp_pos_A_foundary):
+                    print("HAHAHAHA 5")
                     self.target_greedy = None
                     self.mode = "ROOMBA"
                     self.axionite_foundary_states = 6
@@ -455,7 +596,7 @@ def run_greedy_mode(self, ct: Controller, current_pos: Position, goal_pos: Posit
                                     if(landing == self.splitter_foundry_pos or landing == self.temp_pos_A_foundary):
                                         print(f"WALL_JUMP: Bridge landing {landing} is the splitter foundry — switching to ROOMBA")
                                         self.target_greedy = None
-                                        self.axionite_foundary_states = 6
+                                        self.axionite_foundary_states = 3
                                         self.mode = "ROOMBA"
                                         return True
                                 print(f"WALL_JUMP: Built bridge from {current_pos} to {landing}")

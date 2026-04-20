@@ -21,7 +21,7 @@ def corerrun(self, ct: Controller):
     elif self.turn_counter == 2:
          spawnbot(ct, core_pos.add(Direction.NORTHWEST))
          print("HARVESTER")
-    elif self.turn_counter == 1500:
+    if self.turn_counter == 1000:
          spawnbot(ct, core_pos.add(Direction.NORTHEAST))
          print("AXIONITER")
     elif self.turn_counter == 100:
